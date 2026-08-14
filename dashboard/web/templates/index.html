@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Member Retention Advisor — Health Plan Analytics</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="logo">🩺</div>
+      <div>
+        <div class="brand-name">RetainWell</div>
+        <div class="brand-sub">Member Retention Advisor</div>
+      </div>
+    </div>
+    <div class="sidebar-section">Analytics</div>
+    <nav class="nav">
+      <button class="nav-item active" data-view="overview"><span class="nav-icon">📊</span>Overview</button>
+      <button class="nav-item" data-view="members"><span class="nav-icon">👥</span>Member Risk List</button>
+      <button class="nav-item" data-view="impact"><span class="nav-icon">💰</span>Business Impact</button>
+    </nav>
+    <div class="sidebar-section">Model</div>
+    <div class="model-chip">
+      <div class="model-chip-title">Weighted Ensemble</div>
+      <div class="model-chip-row"><span>ROC-AUC</span><b>0.837</b></div>
+      <div class="model-chip-row"><span>Algorithms</span><b>4</b></div>
+      <div class="model-chip-row"><span>Members scored</span><b>4,000</b></div>
+    </div>
+    <div class="sidebar-foot">Predict → Explain → Act</div>
+  </aside>
+
+  <main class="main">
+    <header class="app-header">
+      <div class="app-title">🩺 Health Plan Member Retention Advisor</div>
+      <div class="app-subtitle">AI-powered churn prediction for proactive member retention</div>
+      <div class="header-stats">
+        <span class="header-stat">🎯 Ensemble ROC-AUC 0.837</span>
+        <span class="header-stat">🧠 4-Algorithm Weighted Ensemble</span>
+        <span class="header-stat">📊 4,000 Members Scored</span>
+        <span class="header-stat">🗄️ 12,000 Training Records</span>
+      </div>
+    </header>
+
+    <div class="topbar">
+      <div>
+        <h1 id="page-title">Overview</h1>
+        <p id="page-sub">Health Plan Member Churn — Retention Intelligence</p>
+      </div>
+      <div id="dataset-badge" class="dataset-badge">Active: <b>built-in 4,000 member test set</b> <button id="reset-btn" class="reset-btn hidden" title="Back to built-in dataset">↺ Reset</button></div>
+    </div>
+
+    <section id="view-overview" class="view active">
+      <div class="card" id="upload-card">
+        <div class="section-title">Bring Your Data — start here</div>
+        <div id="upload-drop" class="drop-zone">
+          <div class="drop-icon">📤</div>
+          <div class="drop-text" id="drop-text">Drag & drop your member CSV here, or <u>click to browse</u></div>
+          <div class="drop-sub">We score every member with the 4-algorithm ensemble — risk tier, top driver, recommended action</div>
+          <input type="file" id="upload-file" accept=".csv" hidden>
+        </div>
+        <div id="upload-status"></div>
+        <button id="show-results" class="btn hidden">🚀 Show Results</button>
+        <div class="upload-note">Open-source: your file never leaves this server. Missing columns are auto-filled from our training distribution (median/mode). Predictions capped at 50,000 rows.</div>
+      </div>
+
+      <div id="overview-empty" class="empty-state">
+        <div class="empty-icon">📊</div>
+        Upload your member dataset above and hit <b>Show Results</b> to see the risk analysis.
+      </div>
+
+      <div id="overview-data" class="hidden">
+        <div class="kpis">
+          <div class="metric-card"><div class="metric-val" id="kpi-total">—</div><div class="metric-lbl">Total Members Scored</div></div>
+          <div class="metric-card red"><div class="metric-val" id="kpi-high">—</div><div class="metric-lbl">High Risk — Likely to Leave</div><div class="metric-sub" id="kpi-high-pct"></div></div>
+          <div class="metric-card amber"><div class="metric-val" id="kpi-medium">—</div><div class="metric-lbl">Medium Risk — Watch</div><div class="metric-sub" id="kpi-medium-pct"></div></div>
+          <div class="metric-card green"><div class="metric-val" id="kpi-low">—</div><div class="metric-lbl">Low Risk — Safe</div><div class="metric-sub" id="kpi-low-pct"></div></div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="section-title">Risk Distribution</div>
+            <canvas id="chart-risk" height="230"></canvas>
+          </div>
+          <div class="card">
+            <div class="section-title">Members by Risk Tier — Percentage Share</div>
+            <div class="donut-wrap">
+              <canvas id="chart-donut" height="230"></canvas>
+              <div class="donut-center"><div id="donut-pct">—</div><div class="donut-lbl">largest tier</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="section-title">Top Churn Drivers — Portfolio Level</div>
+            <canvas id="chart-drivers" height="250"></canvas>
+          </div>
+          <div class="card">
+            <div class="section-title">Recommended Retention Actions</div>
+            <div id="action-cards" class="action-cards"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="view-members" class="view">
+      <div id="members-empty" class="empty-state">
+        <div class="empty-icon">👥</div>
+        Upload your dataset in <b>Overview</b> and hit <b>Show Results</b> — member risk records appear here.
+      </div>
+      <div id="members-data" class="hidden">
+        <div class="card">
+        <div class="member-toolbar">
+          <div class="filters">
+            <button class="chip active" data-risk="ALL">All</button>
+            <button class="chip chip-r" data-risk="HIGH">High</button>
+            <button class="chip chip-a" data-risk="MEDIUM">Medium</button>
+            <button class="chip chip-g" data-risk="LOW">Low</button>
+          </div>
+          <input id="member-search" class="search" type="text" placeholder="Search Member ID…">
+        </div>
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th>Member ID</th><th>Age</th><th>Plan</th><th>City</th><th>Churn Risk</th><th>Risk Tier</th></tr></thead>
+            <tbody id="member-rows"></tbody>
+          </table>
+          <div id="member-count" class="table-foot"></div>
+        </div>
+      </div>
+
+      <div id="member-detail" class="detail hidden">
+        <div class="detail-head">
+          <div>
+            <div class="detail-name" id="d-name">—</div>
+            <div class="detail-meta" id="d-meta">—</div>
+          </div>
+          <div class="detail-gauge">
+            <svg viewBox="0 0 120 120" width="120" height="120">
+              <circle cx="60" cy="60" r="52" class="gauge-bg"/>
+              <circle cx="60" cy="60" r="52" class="gauge-fg" id="gauge-arc"/>
+              <text x="60" y="58" text-anchor="middle" class="gauge-val" id="gauge-val">—</text>
+              <text x="60" y="76" text-anchor="middle" class="gauge-lbl">churn probability</text>
+            </svg>
+          </div>
+        </div>
+        <div class="detail-grid">
+          <div class="detail-col">
+            <div class="section-title">Why? Plain-language drivers (SHAP)</div>
+            <div id="d-drivers"></div>
+          </div>
+          <div class="detail-col">
+            <div class="section-title">Recommended Retention Action</div>
+            <div class="action-badge" id="d-action">—</div>
+            <p id="d-detail">—</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="view-impact" class="view">
+      <div id="impact-empty" class="empty-state">
+        <div class="empty-icon">💰</div>
+        Upload your dataset in <b>Overview</b> and hit <b>Show Results</b> — business impact appears here.
+      </div>
+      <div id="impact-data" class="hidden">
+        <div class="card">
+          <div class="section-title">Retention Simulation</div>
+          <div class="impact-row">
+            <div class="impact-control">
+              <label for="success-rate">Estimated retention success rate</label>
+              <input type="range" id="success-rate" min="5" max="60" value="30">
+              <div class="impact-val"><span id="success-val">30</span>%</div>
+            </div>
+            <div class="kpis">
+              <div class="metric-card"><div class="metric-val" id="imp-flagged">—</div><div class="metric-lbl">High-Risk Members Flagged</div></div>
+              <div class="metric-card"><div class="metric-val" id="imp-saved">—</div><div class="metric-lbl">Members Retained</div></div>
+              <div class="metric-card"><div class="metric-val" id="imp-revenue">—</div><div class="metric-lbl">Revenue Preserved / Year</div></div>
+            </div>
+          </div>
+          <div class="impact-note" id="imp-note"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

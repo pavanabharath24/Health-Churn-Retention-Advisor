@@ -1,0 +1,335 @@
+const $ = (id) => document.getElementById(id);
+const TITLES = {
+  overview: ["Overview", "Upload your member data — get churn risk insights"],
+  members: ["Member Risk List", "Risk records for your uploaded members — click a row for details"],
+  impact: ["Business Impact", "What the model's alerts are worth"],
+};
+
+const VIEWS = ["overview", "members", "impact"];
+let currentRisk = "ALL";
+let charts = {};
+let hasData = false;
+let pendingFile = null;
+
+function switchView(name) {
+  VIEWS.forEach(v => $("view-" + v).classList.toggle("active", v === name));
+  document.querySelectorAll(".nav-item").forEach(b => b.classList.toggle("active", b.dataset.view === name));
+  $("page-title").textContent = TITLES[name][0];
+  $("page-sub").textContent = TITLES[name][1];
+  if (name === "overview" && hasData) loadOverview();
+  if (name === "members" && hasData) loadMembers();
+  if (name === "impact" && hasData) loadImpact();
+}
+
+document.querySelectorAll(".nav-item").forEach(b => b.addEventListener("click", () => switchView(b.dataset.view)));
+document.querySelectorAll(".chip").forEach(c => c.addEventListener("click", () => {
+  document.querySelectorAll(".chip").forEach(x => x.classList.remove("active"));
+  c.classList.add("active");
+  currentRisk = c.dataset.risk;
+  loadMembers();
+}));
+$("member-search").addEventListener("input", debounce(loadMembers, 300));
+$("success-rate").addEventListener("input", loadImpact);
+$("show-results").addEventListener("click", () => {
+  if (pendingFile) uploadFile(pendingFile);
+});
+
+function debounce(fn, ms) {
+  let t;
+  return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); };
+}
+
+async function api(path) {
+  const r = await fetch(path);
+  return r.json();
+}
+
+async function refreshDatasetBadge() {
+  const d = await api("/api/dataset");
+  hasData = d.has_data;
+  const badge = $("dataset-badge");
+  const uploaded = d.filename !== null;
+  badge.classList.toggle("uploaded", uploaded);
+  badge.innerHTML = uploaded
+    ? `Active: <b>${d.source}</b> (${d.total.toLocaleString()} members) <button id="reset-btn" class="reset-btn" title="Clear and start fresh">↺ Clear</button>`
+    : "Active: <b>no dataset loaded</b>";
+  if (uploaded) {
+    $("reset-btn").addEventListener("click", resetDataset);
+    showDataViews();
+  } else {
+    showEmptyViews();
+  }
+}
+
+function showDataViews() {
+  $("overview-data").classList.remove("hidden");
+  $("overview-empty").classList.add("hidden");
+  $("members-data").classList.remove("hidden");
+  $("members-empty").classList.add("hidden");
+  $("impact-data").classList.remove("hidden");
+  $("impact-empty").classList.add("hidden");
+  loadOverview();
+  loadMembers();
+  loadImpact();
+}
+
+function showEmptyViews() {
+  $("overview-data").classList.add("hidden");
+  $("overview-empty").classList.remove("hidden");
+  $("members-data").classList.add("hidden");
+  $("members-empty").classList.remove("hidden");
+  $("impact-data").classList.add("hidden");
+  $("impact-empty").classList.remove("hidden");
+  $("member-detail").classList.add("hidden");
+  Object.keys(charts).forEach(k => { if (charts[k]) charts[k].destroy(); });
+  charts = {};
+}
+
+async function resetDataset() {
+  await fetch("/api/reset", { method: "POST" });
+  pendingFile = null;
+  $("drop-text").textContent = "Drag & drop your member CSV here, or click to browse";
+  $("show-results").classList.add("hidden");
+  $("upload-status").innerHTML = "";
+  await refreshDatasetBadge();
+}
+
+async function loadOverview() {
+  const d = await api("/api/overview");
+  if (d.status === "nodata") return;
+  $("kpi-total").textContent = d.total.toLocaleString();
+  $("kpi-high").textContent = d.high.toLocaleString();
+  $("kpi-medium").textContent = d.medium.toLocaleString();
+  $("kpi-low").textContent = d.low.toLocaleString();
+  $("kpi-high-pct").textContent = d.high_pct + "% of members";
+  $("kpi-medium-pct").textContent = d.medium_pct + "% of members";
+  $("kpi-low-pct").textContent = d.low_pct + "% of members";
+
+  renderRiskChart(d);
+  renderDonut(d);
+  renderDrivers(d.global_drivers);
+  renderActions(d.action_counts);
+}
+
+function renderRiskChart(d) {
+  if (charts.risk) charts.risk.destroy();
+  charts.risk = new Chart($("chart-risk"), {
+    type: "bar",
+    data: {
+      labels: ["Low (0-40%)", "Medium (40-70%)", "High (70-100%)"],
+      datasets: [{
+        data: [d.low, d.medium, d.high],
+        backgroundColor: ["#22c55e", "#f97316", "#ef4444"],
+        borderRadius: 8, maxBarThickness: 90,
+      }],
+    },
+    options: {
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true, grid: { color: "#eef2f7" } }, x: { grid: { display: false } } },
+    },
+  });
+}
+
+function renderDonut(d) {
+  if (charts.donut) charts.donut.destroy();
+  const tiers = [
+    { label: "Low risk", v: d.low, color: "#22c55e" },
+    { label: "Medium risk", v: d.medium, color: "#f97316" },
+    { label: "High risk", v: d.high, color: "#ef4444" },
+  ].filter(t => t.v > 0);
+  const largest = tiers.reduce((a, b) => (a.v >= b.v ? a : b), tiers[0]);
+  $("donut-pct").textContent = largest ? Math.round(largest.v / d.total * 100) + "%" : "—";
+  $("donut-pct").style.color = largest ? largest.color : "var(--muted)";
+  document.querySelector(".donut-lbl").textContent = largest ? largest.label : "no data";
+  charts.donut = new Chart($("chart-donut"), {
+    type: "doughnut",
+    data: {
+      labels: tiers.map(t => `${t.label} — ${(t.v / d.total * 100).toFixed(1)}%`),
+      datasets: [{ data: tiers.map(t => t.v), backgroundColor: tiers.map(t => t.color), borderWidth: 0 }],
+    },
+    options: { plugins: { legend: { position: "bottom" } }, cutout: "64%" },
+  });
+}
+
+function renderDrivers(drivers) {
+  if (charts.drivers) charts.drivers.destroy();
+  if (!drivers.length) {
+    charts.drivers = new Chart($("chart-drivers"), {
+      type: "bar",
+      data: { labels: ["no driver data"], datasets: [{ data: [0], backgroundColor: "#c7d0e0" }] },
+      options: { plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false } } },
+    });
+    return;
+  }
+  charts.drivers = new Chart($("chart-drivers"), {
+    type: "bar",
+    data: {
+      labels: drivers.map(x => x.feature),
+      datasets: [{
+        data: drivers.map(x => x.importance),
+        backgroundColor: drivers.map(() => "#4f46e5"),
+        borderRadius: 6, maxBarThickness: 22,
+      }],
+    },
+    options: {
+      indexAxis: "y",
+      plugins: { legend: { display: false } },
+      scales: { x: { grid: { color: "#eef2f7" } }, y: { grid: { display: false } } },
+    },
+  });
+}
+
+const ACTION_META = {
+  "Care Outreach": ["ac-care", "🌱"],
+  "Benefit Education": ["ac-benefit", "📘"],
+  "Pharmacy Support": ["ac-pharmacy", "💊"],
+  "Service Recovery": ["ac-service", "🛠️"],
+};
+
+function renderActions(counts) {
+  const box = $("action-cards");
+  box.innerHTML = "";
+  const entries = Object.entries(counts);
+  if (!entries.length) {
+    box.innerHTML = '<div class="upload-hint">No driver data (SHAP skipped for very large files).</div>';
+    return;
+  }
+  entries.forEach(([name, n]) => {
+    const [cls, icon] = ACTION_META[name] || ["ac-care", "•"];
+    const el = document.createElement("div");
+    el.className = "action-card " + cls;
+    el.innerHTML = `<div class="ac-num">${icon} ${n.toLocaleString()}</div><div class="ac-lbl">${name}</div>`;
+    box.appendChild(el);
+  });
+}
+
+async function loadMembers() {
+  const q = $("member-search").value.trim();
+  const d = await api("/api/members?risk=" + currentRisk + "&q=" + encodeURIComponent(q));
+  const tbody = $("member-rows");
+  tbody.innerHTML = "";
+  d.members.forEach(m => {
+    const tr = document.createElement("tr");
+    tr.dataset.id = m.id;
+    tr.innerHTML = `<td><strong>${m.id}</strong></td><td>${m.age}</td><td>${m.plan}</td><td>${m.city}</td>
+      <td>${m.prob}%</td><td><span class="badge badge-${m.risk.toLowerCase()}">${m.risk}</span></td>`;
+    tr.addEventListener("click", () => showMember(m.id, tr));
+    tbody.appendChild(tr);
+  });
+  $("member-count").textContent = `${d.count.toLocaleString()} members — sorted by risk, highest first`;
+}
+
+async function showMember(id, tr) {
+  document.querySelectorAll("#member-rows tr").forEach(r => r.classList.remove("selected"));
+  tr.classList.add("selected");
+  const d = await api("/api/member/" + id);
+  const detail = $("member-detail");
+  detail.classList.remove("hidden");
+  $("d-name").textContent = d.id;
+  $("d-meta").textContent = `${d.age} yrs · ${d.sex} · ${d.plan} · ${d.city} · ${d.risk} RISK`;
+
+  const arc = $("gauge-arc");
+  const p = d.prob;
+  arc.style.stroke = p >= 70 ? "#ef4444" : p >= 40 ? "#f97316" : "#22c55e";
+  setTimeout(() => { arc.style.strokeDashoffset = 327 - (327 * p / 100); }, 60);
+  $("gauge-val").textContent = p + "%";
+
+  const driversBox = $("d-drivers");
+  driversBox.innerHTML = "";
+  if (!d.drivers.length) {
+    driversBox.innerHTML = '<div class="upload-hint">Driver explanation unavailable for this file size.</div>';
+  } else {
+    const maxScore = d.drivers.reduce((m, x) => Math.max(m, Math.abs(x.score)), 0.01);
+    d.drivers.forEach(drv => {
+      const row = document.createElement("div");
+      row.className = "driver-row";
+      row.innerHTML = `
+        <div class="driver-name">${drv.feature}</div>
+        <div style="text-align:right"><span class="driver-val">+${drv.score.toFixed(2)}</span></div>
+      `;
+      const bar = document.createElement("div");
+      bar.className = "driver-bar";
+      bar.innerHTML = `<i style="width:${Math.max(5, Math.min(100, Math.abs(drv.score) / maxScore * 100))}%"></i>`;
+      driversBox.appendChild(row);
+      driversBox.appendChild(bar);
+    });
+  }
+
+  const [cls, icon] = ACTION_META[d.action] || ["ac-care", "•"];
+  const badge = $("d-action");
+  badge.textContent = `${icon} ${d.action || "No action"}`;
+  badge.style.background = cls === "ac-care" ? "linear-gradient(135deg,#0e7490,#0891b2)"
+    : cls === "ac-benefit" ? "linear-gradient(135deg,#4338ca,#6366f1)"
+    : cls === "ac-pharmacy" ? "linear-gradient(135deg,#6d28d9,#8b5cf6)"
+    : "linear-gradient(135deg,#b45309,#d97706)";
+  $("d-detail").textContent = d.detail || "";
+  detail.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+async function loadImpact() {
+  const v = parseInt($("success-rate").value, 10);
+  $("success-val").textContent = v;
+  const d = await api("/api/impact?success=" + v);
+  $("imp-flagged").textContent = d.high_flagged.toLocaleString();
+  $("imp-saved").textContent = d.saved_members.toLocaleString();
+  $("imp-revenue").textContent = "$" + d.revenue.toLocaleString();
+  $("imp-note").textContent = `Assumes average member value of $${d.member_value.toLocaleString()}/year. At a ${v}% outreach success rate, ${d.saved_members.toLocaleString()} of ${d.high_flagged.toLocaleString()} high-risk members are retained — worth $${d.revenue.toLocaleString()} in preserved annual premium.`;
+}
+
+const dropZone = $("upload-drop");
+const fileInput = $("upload-file");
+
+["dragenter", "dragover"].forEach(ev => dropZone.addEventListener(ev, e => {
+  e.preventDefault();
+  dropZone.classList.add("dragover");
+}));
+["dragleave", "drop"].forEach(ev => dropZone.addEventListener(ev, e => {
+  e.preventDefault();
+  dropZone.classList.remove("dragover");
+}));
+dropZone.addEventListener("drop", e => {
+  const f = e.dataTransfer.files[0];
+  if (f) selectFile(f);
+});
+dropZone.addEventListener("click", () => fileInput.click());
+fileInput.addEventListener("change", e => {
+  if (e.target.files[0]) selectFile(e.target.files[0]);
+});
+
+function selectFile(file) {
+  if (!file.name.endsWith(".csv")) {
+    $("upload-status").innerHTML = '<div class="upload-error">Please choose a CSV file.</div>';
+    return;
+  }
+  pendingFile = file;
+  $("drop-text").textContent = `📄 ${file.name} ready — click Show Results`;
+  $("show-results").classList.remove("hidden");
+  $("upload-status").innerHTML = "";
+}
+
+async function uploadFile(file) {
+  $("upload-status").innerHTML = '<div class="upload-loading">⚙️ Scoring members with the 4-algorithm ensemble…</div>';
+  const fd = new FormData();
+  fd.append("file", file);
+  try {
+    const r = await fetch("/api/predict", { method: "POST", body: fd });
+    const d = await r.json();
+    if (d.error) {
+      $("upload-status").innerHTML = `<div class="upload-error">⚠️ ${d.error}</div>`;
+      if (d.required) $("upload-status").innerHTML += `<div class="upload-hint">Model needs: ${d.required.join(", ")}</div>`;
+      return;
+    }
+    $("upload-status").innerHTML = `<div class="upload-ok">✅ ${d.total.toLocaleString()} members scored — ${d.high.toLocaleString()} high risk, ${d.medium.toLocaleString()} medium, ${d.low.toLocaleString()} low. This dataset is now active across the dashboard.</div>`;
+    if (d.warnings && d.warnings.length) {
+      $("upload-status").innerHTML += `<div class="upload-hint">${d.warnings.join("<br>")}<br><a href="${d.download_url}" class="reset-btn">⬇️ Download full results (CSV)</a></div>`;
+    } else {
+      $("upload-status").innerHTML += `<div class="upload-hint"><a href="${d.download_url}" class="reset-btn">⬇️ Download full results (CSV)</a></div>`;
+    }
+    await refreshDatasetBadge();
+  } catch (err) {
+    $("upload-status").innerHTML = '<div class="upload-error">⚠️ Server error — please try again.</div>';
+  }
+}
+
+refreshDatasetBadge();
+switchView("overview");

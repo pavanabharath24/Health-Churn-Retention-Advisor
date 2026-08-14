@@ -1,0 +1,25 @@
+__pycache__/
+*.pyc
+.streamlit/
+dashboard/web/uploads/
+dashboard/app.py
+notebooks/
+
+# scratch / working scripts (kept locally, not part of the repo)
+[0-9]*.py
+
+# heavy or intermediate model files (only the final app artifacts are tracked)
+models/*
+!models/final_pipelines.pkl
+!models/final_weights.pkl
+!models/final_preprocessor.pkl
+!models/final_input_columns.pkl
+
+# intermediate / comparison datasets
+data/all_predictions_full.csv
+data/friend_churn_testing.csv
+data/friend_churn_training.csv
+data/main_churn.csv
+data/secondary_churn.csv
+data/synthetic_health_churn.csv
+data/test_predictions.csv
