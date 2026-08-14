@@ -54,7 +54,8 @@ GLOBAL_DRIVERS = []
 _explainer = None
 
 def clean_name(f):
-    return f.replace("num__", "").replace("cat__", "")
+    n = f.replace("num__", "").replace("cat__", "")
+    return " ".join(w if w.isupper() else w.capitalize() for w in n.split("_"))
 
 def get_explainer():
     if _explainer is None:
