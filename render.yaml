@@ -4,7 +4,7 @@ services:
     runtime: python
     plan: free
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn -w 1 --threads 4 --timeout 300 -b 0.0.0.0:8501 dashboard.web.app_server:app
+    startCommand: gunicorn -w 1 --threads 4 --timeout 300 -b 0.0.0.0:${PORT:-8501} dashboard.web.app_server:app
     healthCheckPath: /
     autoDeploy: true
     envVars:
