@@ -85,8 +85,7 @@ def build_shap_cache():
         DRIVER_CACHE[member_id] = drivers
         ACTION_COUNTS[drivers[0]["action"]] = ACTION_COUNTS.get(drivers[0]["action"], 0) + 1
 
-print("Precomputing SHAP drivers for all members…")
-threading.Thread(target=build_shap_cache, daemon=True).start()
+print("App ready — upload a dataset to start")
 
 def member_drivers(member_id):
     return ACTIVE["drivers"].get(member_id, [])
