@@ -3,10 +3,8 @@ services:
     name: health-churn-retention-advisor
     runtime: python
     plan: free
+    pythonVersion: 3.12.0
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn -w 1 --threads 4 --timeout 300 -b 0.0.0.0:${PORT:-8501} dashboard.web.app_server:app
     healthCheckPath: /
     autoDeploy: true
-    envVars:
-      - key: PYTHON_VERSION
-        value: 3.12.0
