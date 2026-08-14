@@ -24,6 +24,7 @@
     <nav class="nav">
       <button class="nav-item active" data-view="overview"><span class="nav-icon">📊</span>Overview</button>
       <button class="nav-item" data-view="members"><span class="nav-icon">👥</span>Member Risk List</button>
+      <button class="nav-item" data-view="advisor"><span class="nav-icon">🛡️</span>Retention Advisor</button>
       <button class="nav-item" data-view="impact"><span class="nav-icon">💰</span>Business Impact</button>
     </nav>
     <div class="sidebar-section">Model</div>
@@ -159,6 +160,35 @@
             <div class="section-title">Recommended Retention Action</div>
             <div class="action-badge" id="d-action">—</div>
             <p id="d-detail">—</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="view-advisor" class="view">
+      <div id="advisor-empty" class="empty-state">
+        <div class="empty-icon">🛡️</div>
+        Upload your dataset in <b>Overview</b> and hit <b>Show Results</b> — recommended retention actions appear here.
+      </div>
+      <div id="advisor-data" class="hidden">
+        <div class="card">
+          <div class="section-title">Recommended Retention Actions — Portfolio Plan</div>
+          <div class="action-cards" id="advisor-summary"></div>
+          <div class="member-toolbar">
+            <div class="filters" id="advisor-filters">
+              <button class="chip active" data-action="ALL">All</button>
+              <button class="chip" data-action="Care Outreach">🌱 Care Outreach</button>
+              <button class="chip" data-action="Benefit Education">📘 Benefit Education</button>
+              <button class="chip" data-action="Pharmacy Support">💊 Pharmacy Support</button>
+              <button class="chip" data-action="Service Recovery">🛠️ Service Recovery</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="table">
+              <thead><tr><th>Member ID</th><th>Churn Risk</th><th>Risk Tier</th><th>Top Driver</th><th>Recommended Action</th></tr></thead>
+              <tbody id="advisor-rows"></tbody>
+            </table>
+            <div id="advisor-count" class="table-foot"></div>
           </div>
         </div>
       </div>

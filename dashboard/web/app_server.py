@@ -168,15 +168,21 @@ def members():
     if q:
         view = view[view["MemberID"].astype(str).str.contains(q, case=False, na=False)]
     view = view.sort_values("Churn_Probability", ascending=False)
-    return jsonify({
-        "count": len(view),
-        "members": [{
+    members = []
+    for _, r in view.head(500).iterrows():
+        drv = ACTIVE["drivers"].get(str(r["MemberID"]), [])
+        members.append({
             "id": r["MemberID"], "age": int(r["Age"]) if "Age" in view.columns and pd.notna(r["Age"]) else 0,
             "plan": r["Plan_Type"] if "Plan_Type" in view.columns else "—",
             "city": r["City"] if "City" in view.columns else "—",
             "prob": round(float(r["Churn_Probability"]) * 100, 1),
             "risk": r["Risk"],
-        } for _, r in view.head(500).iterrows()],
+            "driver": drv[0]["feature"] if drv else "—",
+            "action": drv[0]["action"] if drv else "—",
+        })
+    return jsonify({
+        "count": len(view),
+        "members": members,
     })
 
 @app.route("/api/member/<member_id>")

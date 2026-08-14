@@ -2,11 +2,13 @@ const $ = (id) => document.getElementById(id);
 const TITLES = {
   overview: ["Overview", "Upload your member data — get churn risk insights"],
   members: ["Member Risk List", "Risk records for your uploaded members — click a row for details"],
+  advisor: ["Retention Advisor", "Recommended retention action for every member — the 'Act' step"],
   impact: ["Business Impact", "What the model's alerts are worth"],
 };
 
-const VIEWS = ["overview", "members", "impact"];
+const VIEWS = ["overview", "members", "advisor", "impact"];
 let currentRisk = "ALL";
+let currentAction = "ALL";
 let charts = {};
 let hasData = false;
 let pendingFile = null;
@@ -18,6 +20,7 @@ function switchView(name) {
   $("page-sub").textContent = TITLES[name][1];
   if (name === "overview" && hasData) loadOverview();
   if (name === "members" && hasData) loadMembers();
+  if (name === "advisor" && hasData) loadAdvisor();
   if (name === "impact" && hasData) loadImpact();
 }
 
@@ -29,6 +32,12 @@ document.querySelectorAll(".chip").forEach(c => c.addEventListener("click", () =
   loadMembers();
 }));
 $("member-search").addEventListener("input", debounce(loadMembers, 300));
+document.querySelectorAll("#advisor-filters .chip").forEach(c => c.addEventListener("click", () => {
+  document.querySelectorAll("#advisor-filters .chip").forEach(x => x.classList.remove("active"));
+  c.classList.add("active");
+  currentAction = c.dataset.action;
+  loadAdvisor();
+}));
 $("success-rate").addEventListener("input", loadImpact);
 $("show-results").addEventListener("click", () => {
   if (pendingFile) uploadFile(pendingFile);
@@ -66,10 +75,13 @@ function showDataViews() {
   $("overview-empty").classList.add("hidden");
   $("members-data").classList.remove("hidden");
   $("members-empty").classList.add("hidden");
+  $("advisor-data").classList.remove("hidden");
+  $("advisor-empty").classList.add("hidden");
   $("impact-data").classList.remove("hidden");
   $("impact-empty").classList.add("hidden");
   loadOverview();
   loadMembers();
+  loadAdvisor();
   loadImpact();
 }
 
@@ -78,6 +90,8 @@ function showEmptyViews() {
   $("overview-empty").classList.remove("hidden");
   $("members-data").classList.add("hidden");
   $("members-empty").classList.remove("hidden");
+  $("advisor-data").classList.add("hidden");
+  $("advisor-empty").classList.remove("hidden");
   $("impact-data").classList.add("hidden");
   $("impact-empty").classList.remove("hidden");
   $("member-detail").classList.add("hidden");
@@ -264,6 +278,40 @@ async function showMember(id, tr) {
     : "linear-gradient(135deg,#b45309,#d97706)";
   $("d-detail").textContent = d.detail || "";
   detail.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+async function loadAdvisor() {
+  const d = await api("/api/members?risk=ALL");
+  const summary = {};
+  const ACTION_LBL = {
+    "Care Outreach": "🌱 Care Outreach",
+    "Benefit Education": "📘 Benefit Education",
+    "Pharmacy Support": "💊 Pharmacy Support",
+    "Service Recovery": "🛠️ Service Recovery",
+  };
+  const ORDER = ["Care Outreach", "Benefit Education", "Pharmacy Support", "Service Recovery"];
+  d.members.forEach(m => { summary[m.action] = (summary[m.action] || 0) + 1; });
+  const box = $("advisor-summary");
+  box.innerHTML = "";
+  ORDER.forEach(name => {
+    const n = summary[name] || 0;
+    const el = document.createElement("div");
+    el.className = "action-card";
+    el.innerHTML = `<div class="ac-num">${ACTION_LBL[name] || name} <b>${n.toLocaleString()}</b></div><div class="ac-lbl">members to reach out to</div>`;
+    box.appendChild(el);
+  });
+
+  const rows = d.members.filter(m => currentAction === "ALL" || m.action === currentAction);
+  const tbody = $("advisor-rows");
+  tbody.innerHTML = "";
+  rows.forEach(m => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td><strong>${m.id}</strong></td><td>${m.prob}%</td>
+      <td><span class="badge badge-${m.risk.toLowerCase()}">${m.risk}</span></td>
+      <td>${m.driver}</td><td>${m.action}</td>`;
+    tbody.appendChild(tr);
+  });
+  $("advisor-count").textContent = `${rows.length.toLocaleString()} of ${d.count.toLocaleString()} members — sorted by risk, highest first`;
 }
 
 async function loadImpact() {
