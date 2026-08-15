@@ -331,6 +331,63 @@ def predict_upload():
         "dataset": {"source": f"your upload — {fname}", "total": int(len(user))},
     })
 
+@app.route("/api/predict_single", methods=["POST"])
+def predict_single():
+    data = request.get_json(silent=True) or {}
+    member_id = str(data.get("MemberID", "SINGLE-001"))
+
+    X_u = pd.DataFrame(index=[0])
+    for c in NUM_COLS:
+        v = data.get(c)
+        if v is None:
+            X_u[c] = MEDIANS[c]
+        else:
+            try:
+                X_u[c] = float(v)
+            except (TypeError, ValueError):
+                X_u[c] = MEDIANS[c]
+    for c in CAT_COLS:
+        v = data.get(c)
+        if v is None or str(v) == "":
+            X_u[c] = CAT_MODES[c]
+        else:
+            X_u[c] = str(v)
+
+    proba = np.zeros(1)
+    for name, pipe in pipelines.items():
+        proba += weights[name] * pipe.predict_proba(X_u[input_cols])[:, 1]
+    proba /= sum(weights.values())
+    p = float(proba[0])
+    risk = risk_label(p)
+
+    drivers = []
+    contributions = []
+    try:
+        x_t = pipelines["XGBoost"].named_steps["pre"].transform(X_u[input_cols])
+        sv = get_explainer().shap_values(x_t)[0]
+        fnames = pipelines["XGBoost"].named_steps["pre"].get_feature_names_out()
+        order = np.argsort(-np.abs(sv))
+        top3 = order[:3]
+        for i in top3:
+            action, detail = map_action(fnames[i])
+            drivers.append({"feature": clean_name(fnames[i]), "score": round(float(sv[i]), 3),
+                            "action": action, "detail": detail})
+        contributions = [{"feature": clean_name(fnames[i]), "score": round(float(sv[i]), 4)}
+                         for i in order[:10]]
+    except Exception:
+        pass
+
+    return jsonify({
+        "id": member_id,
+        "prob": round(p * 100, 1),
+        "risk": risk,
+        "drivers": drivers,
+        "action": drivers[0]["action"] if drivers else "Care Outreach",
+        "detail": drivers[0]["detail"] if drivers else "Standard retention touchpoint",
+        "contributions": contributions,
+        "member_value": MEMBER_VALUE_YEAR,
+    })
+
 @app.route("/api/download/<fname>")
 def download(fname):
     return send_from_directory(UPLOAD_DIR, fname, as_attachment=True)

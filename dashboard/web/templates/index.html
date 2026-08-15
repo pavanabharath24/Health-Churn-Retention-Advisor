@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Member Retention Advisor — Health Plan Analytics</title>
+<title>RetainWell — Member Retention Advisor</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/style.css">
@@ -20,19 +20,52 @@
         <div class="brand-sub">Member Retention Advisor</div>
       </div>
     </div>
+
     <div class="sidebar-section">Analytics</div>
     <nav class="nav">
       <button class="nav-item active" data-view="overview"><span class="nav-icon">📊</span>Overview</button>
       <button class="nav-item" data-view="members"><span class="nav-icon">👥</span>Member Risk List</button>
+      <button class="nav-item" data-view="single"><span class="nav-icon">👤</span>Single Patient</button>
       <button class="nav-item" data-view="advisor"><span class="nav-icon">🛡️</span>Retention Advisor</button>
       <button class="nav-item" data-view="impact"><span class="nav-icon">💰</span>Business Impact</button>
+      <button class="nav-item" data-view="feature"><span class="nav-icon">📈</span>Feature Chart</button>
+      <button class="nav-item" data-view="batch"><span class="nav-icon">📤</span>Batch Results</button>
     </nav>
+
+    <div class="sidebar-section">Patient Input</div>
+    <div class="patient-form-wrap">
+      <div class="pf-title">Single-Patient Assessment</div>
+      <div class="pf-sub">Fill key factors — missing ones are auto-filled from training medians</div>
+      <form id="patient-form">
+        <label class="pf-label">Member ID</label>
+        <input class="pf-input" type="text" id="pf-id" placeholder="e.g. MEM-0049" value="MEM-0049">
+        <label class="pf-label">Age</label>
+        <input class="pf-input" type="number" id="pf-age" min="18" max="100" value="58">
+        <label class="pf-label">Days Since Last Visit</label>
+        <input class="pf-input" type="number" id="pf-days" min="0" max="365" value="120">
+        <label class="pf-label">Overall Satisfaction (1–10)</label>
+        <input class="pf-input" type="number" id="pf-sat" min="1" max="10" step="0.1" value="4.5">
+        <label class="pf-label">Avg Out-Of-Pocket Cost ($)</label>
+        <input class="pf-input" type="number" id="pf-cost" min="0" value="3500">
+        <label class="pf-label">Claim Denials</label>
+        <input class="pf-input" type="number" id="pf-denials" min="0" max="15" value="3">
+        <label class="pf-label">Medication Adherence (0–1)</label>
+        <input class="pf-input" type="number" id="pf-adherence" min="0" max="1" step="0.01" value="0.65">
+        <label class="pf-label">Service Contacts</label>
+        <input class="pf-input" type="number" id="pf-contacts" min="0" max="20" value="6">
+        <label class="pf-label">Rural (1 = yes, 0 = no)</label>
+        <input class="pf-input" type="number" id="pf-rural" min="0" max="1" value="0">
+        <button type="submit" class="btn-sidebar">🧠 Assess Risk</button>
+      </form>
+      <div id="pf-status" class="pf-status"></div>
+    </div>
+
     <div class="sidebar-section">Model</div>
     <div class="model-chip">
       <div class="model-chip-title">Weighted Ensemble</div>
       <div class="model-chip-row"><span>ROC-AUC</span><b>0.837</b></div>
       <div class="model-chip-row"><span>Algorithms</span><b>4</b></div>
-      <div class="model-chip-row"><span>Members scored</span><b>4,000</b></div>
+      <div class="model-chip-row"><span>Training</span><b>12,000</b></div>
     </div>
     <div class="sidebar-foot">Predict → Explain → Act</div>
   </aside>
@@ -44,8 +77,7 @@
       <div class="header-stats">
         <span class="header-stat">🎯 Ensemble ROC-AUC 0.837</span>
         <span class="header-stat">🧠 4-Algorithm Weighted Ensemble</span>
-        <span class="header-stat">📊 4,000 Members Scored</span>
-        <span class="header-stat">🗄️ 12,000 Training Records</span>
+        <span class="header-stat">📊 SHAP-Powered Explanations</span>
       </div>
     </header>
 
@@ -54,7 +86,7 @@
         <h1 id="page-title">Overview</h1>
         <p id="page-sub">Health Plan Member Churn — Retention Intelligence</p>
       </div>
-      <div id="dataset-badge" class="dataset-badge">Active: <b>built-in 4,000 member test set</b> <button id="reset-btn" class="reset-btn hidden" title="Back to built-in dataset">↺ Reset</button></div>
+      <div id="dataset-badge" class="dataset-badge">Active: <b>no dataset loaded</b></div>
     </div>
 
     <section id="view-overview" class="view active">
@@ -118,48 +150,81 @@
       </div>
       <div id="members-data" class="hidden">
         <div class="card">
-        <div class="member-toolbar">
-          <div class="filters">
-            <button class="chip active" data-risk="ALL">All</button>
-            <button class="chip chip-r" data-risk="HIGH">High</button>
-            <button class="chip chip-a" data-risk="MEDIUM">Medium</button>
-            <button class="chip chip-g" data-risk="LOW">Low</button>
+          <div class="member-toolbar">
+            <div class="filters">
+              <button class="chip active" data-risk="ALL">All</button>
+              <button class="chip chip-r" data-risk="HIGH">High</button>
+              <button class="chip chip-a" data-risk="MEDIUM">Medium</button>
+              <button class="chip chip-g" data-risk="LOW">Low</button>
+            </div>
+            <input id="member-search" class="search" type="text" placeholder="Search Member ID…">
           </div>
-          <input id="member-search" class="search" type="text" placeholder="Search Member ID…">
+          <div class="table-wrap">
+            <table class="table">
+              <thead><tr><th>Member ID</th><th>Age</th><th>Plan</th><th>City</th><th>Churn Risk</th><th>Risk Tier</th></tr></thead>
+              <tbody id="member-rows"></tbody>
+            </table>
+            <div id="member-count" class="table-foot"></div>
+          </div>
         </div>
-        <div class="table-wrap">
-          <table class="table">
-            <thead><tr><th>Member ID</th><th>Age</th><th>Plan</th><th>City</th><th>Churn Risk</th><th>Risk Tier</th></tr></thead>
-            <tbody id="member-rows"></tbody>
-          </table>
-          <div id="member-count" class="table-foot"></div>
+
+        <div id="member-detail" class="detail hidden">
+          <div class="detail-head">
+            <div>
+              <div class="detail-name" id="d-name">—</div>
+              <div class="detail-meta" id="d-meta">—</div>
+            </div>
+            <div class="detail-gauge">
+              <svg viewBox="0 0 120 120" width="120" height="120">
+                <circle cx="60" cy="60" r="52" class="gauge-bg"/>
+                <circle cx="60" cy="60" r="52" class="gauge-fg" id="gauge-arc"/>
+                <text x="60" y="58" text-anchor="middle" class="gauge-val" id="gauge-val">—</text>
+                <text x="60" y="76" text-anchor="middle" class="gauge-lbl">churn probability</text>
+              </svg>
+            </div>
+          </div>
+          <div class="detail-grid">
+            <div class="detail-col">
+              <div class="section-title">Why? Plain-language drivers (SHAP)</div>
+              <div id="d-drivers"></div>
+            </div>
+            <div class="detail-col">
+              <div class="section-title">Recommended Retention Action</div>
+              <div class="action-badge" id="d-action">—</div>
+              <p id="d-detail">—</p>
+            </div>
+          </div>
         </div>
       </div>
+    </section>
 
-      <div id="member-detail" class="detail hidden">
-        <div class="detail-head">
-          <div>
-            <div class="detail-name" id="d-name">—</div>
-            <div class="detail-meta" id="d-meta">—</div>
+    <section id="view-single" class="view">
+      <div id="single-empty" class="empty-state">
+        <div class="empty-icon">👤</div>
+        Fill the <b>Patient Input</b> form in the sidebar and click <b>Assess Risk</b> — or click any member in the Member Risk List.
+      </div>
+      <div id="single-data" class="hidden">
+        <div class="card">
+          <div class="section-title">Single-Patient Assessment Result</div>
+          <div class="patient-summary">
+            <div class="kpis">
+              <div class="metric-card"><div class="metric-val" id="s-id">—</div><div class="metric-lbl">Member ID</div></div>
+              <div class="metric-card red"><div class="metric-val" id="s-prob">—</div><div class="metric-lbl">Churn Probability</div></div>
+              <div class="metric-card amber"><div class="metric-val" id="s-risk">—</div><div class="metric-lbl">Risk Tier</div></div>
+              <div class="metric-card green"><div class="metric-val" id="s-saved">—</div><div class="metric-lbl">Retention Value / Yr</div></div>
+            </div>
           </div>
-          <div class="detail-gauge">
-            <svg viewBox="0 0 120 120" width="120" height="120">
-              <circle cx="60" cy="60" r="52" class="gauge-bg"/>
-              <circle cx="60" cy="60" r="52" class="gauge-fg" id="gauge-arc"/>
-              <text x="60" y="58" text-anchor="middle" class="gauge-val" id="gauge-val">—</text>
-              <text x="60" y="76" text-anchor="middle" class="gauge-lbl">churn probability</text>
-            </svg>
-          </div>
-        </div>
-        <div class="detail-grid">
-          <div class="detail-col">
-            <div class="section-title">Why? Plain-language drivers (SHAP)</div>
-            <div id="d-drivers"></div>
-          </div>
-          <div class="detail-col">
-            <div class="section-title">Recommended Retention Action</div>
-            <div class="action-badge" id="d-action">—</div>
-            <p id="d-detail">—</p>
+          <div class="detail-grid">
+            <div class="detail-col">
+              <div class="section-title">Why? Plain-language drivers (SHAP)</div>
+              <div id="s-drivers"></div>
+            </div>
+            <div class="detail-col">
+              <div class="section-title">Recommended Retention Action</div>
+              <div class="action-badge" id="s-action">—</div>
+              <p id="s-detail">—</p>
+              <button id="s-trigger" class="btn">📞 Trigger Outreach</button>
+            </div>
           </div>
         </div>
       </div>
@@ -218,8 +283,52 @@
         </div>
       </div>
     </section>
+
+    <section id="view-feature" class="view">
+      <div id="feature-empty" class="empty-state">
+        <div class="empty-icon">📈</div>
+        Assess a patient (sidebar form or Member Risk List) to see their SHAP feature contributions here.
+      </div>
+      <div id="feature-data" class="hidden">
+        <div class="card">
+          <div class="section-title">Feature Contributions — SHAP Values</div>
+          <p class="feature-desc">Each bar shows how strongly a factor pushes the churn probability up (red) or down (green) for this patient.</p>
+          <canvas id="feature-chart" height="300"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <section id="view-batch" class="view">
+      <div id="batch-empty" class="empty-state">
+        <div class="empty-icon">📤</div>
+        Upload a CSV in <b>Overview</b> and hit <b>Show Results</b> — batch results appear here with a download link.
+      </div>
+      <div id="batch-data" class="hidden">
+        <div class="card">
+          <div class="section-title">Batch Prediction Results</div>
+          <div class="kpis">
+            <div class="metric-card"><div class="metric-val" id="batch-total">—</div><div class="metric-lbl">Members Scored</div></div>
+            <div class="metric-card red"><div class="metric-val" id="batch-high">—</div><div class="metric-lbl">High Risk</div></div>
+            <div class="metric-card amber"><div class="metric-val" id="batch-medium">—</div><div class="metric-lbl">Medium Risk</div></div>
+            <div class="metric-card green"><div class="metric-val" id="batch-low">—</div><div class="metric-lbl">Low Risk</div></div>
+          </div>
+          <div class="table-wrap">
+            <table class="table">
+              <thead><tr><th>Member ID</th><th>Churn Risk</th><th>Risk Tier</th><th>Top Driver</th><th>Recommended Action</th></tr></thead>
+              <tbody id="batch-rows"></tbody>
+            </table>
+            <div id="batch-count" class="table-foot"></div>
+          </div>
+          <div class="batch-actions">
+            <a id="batch-download" class="btn hidden" download>⬇️ Download full results (CSV)</a>
+          </div>
+        </div>
+      </div>
+    </section>
   </main>
 </div>
+
+<div id="toast-container" class="toast-container"></div>
 
 <script src="/static/app.js"></script>
 </body>
