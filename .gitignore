@@ -11,6 +11,7 @@ notebooks/
 # heavy or intermediate model files (only the final app artifacts are tracked)
 models/*
 !models/final_pipelines.pkl
+!models/expanded_final_pipelines.pkl
 !models/final_weights.pkl
 !models/final_preprocessor.pkl
 !models/final_input_columns.pkl
