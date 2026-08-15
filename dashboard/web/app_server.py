@@ -8,22 +8,35 @@ import joblib
 import shap
 from flask import Flask, jsonify, render_template, request, send_from_directory
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='../static/react', static_url_path='/static')
 UPLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-pipelines = joblib.load("models/final_pipelines.pkl")
+# Serve React app at root
+@app.route('/')
+def serve_react_root():
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Load the expanded model
+model_artifacts = joblib.load("models/expanded_final_pipelines.pkl")
+pipelines = model_artifacts['models']
+preprocessor = model_artifacts['preprocessor']
+NUM_COLS = model_artifacts['NUM_COLS']
+CAT_COLS = model_artifacts['CAT_COLS']
+ALL_COLS = NUM_COLS + CAT_COLS
+best_thr = model_artifacts.get('best_thr', 0.37)
+
+# Load ensemble weights
 weights = joblib.load("models/final_weights.pkl")
-input_cols = joblib.load("models/final_input_columns.pkl")
 
 preds = pd.read_csv("data/all_predictions.csv")
 MEMBER_VALUE_YEAR = 1800.0
 
-CAT_COLS = ["Sex", "City", "Hereditary_Diseases", "Plan_Type"]
-NUM_COLS = [c for c in input_cols if c not in CAT_COLS]
-_train = pd.read_csv("data/dataset_a_train.csv")
+_train = pd.read_csv("data/A.0_train.csv")
 MEDIANS = _train[NUM_COLS].median()
 CAT_MODES = {c: _train[c].mode().iloc[0] for c in CAT_COLS}
+
+input_cols = ALL_COLS  # alias for compatibility
 
 def risk_label(p):
     if p >= 0.7:
@@ -34,19 +47,86 @@ def risk_label(p):
 
 preds["Risk"] = preds["Churn_Probability"].apply(risk_label)
 
+ACTION_RULES = {
+    "Distance_To_Facility_Miles": ("Access Support", "In-network expansion & telehealth",
+                                   "Offer telehealth visits and transport assistance to the nearest in-network site"),
+    "Rural": ("Access Support", "Mobile clinic & telehealth access",
+              "Schedule mobile-clinic visits / telehealth for rural members"),
+    "Days_Since_Last_Visit": ("Care Outreach", "Re-engage & schedule a check-up",
+                              "Nurse-line outreach to book a check-up within two weeks"),
+    "Overall_Satisfaction": ("Care Outreach", "Satisfaction call & care coordination",
+                             "Care-coordinator call to understand the dissatisfaction and fix it"),
+    "Missed_Appointments": ("Care Outreach", "Transport & appointment reminders",
+                            "Provide transport assistance and reminder calls for appointments"),
+    "Sex": ("Care Outreach", "Personalized member touchpoint",
+            "Personalized wellness touchpoint by care team"),
+    "City": ("Care Outreach", "Personalized member touchpoint",
+             "Personalized wellness touchpoint by care team"),
+    "Medication_Adherence": ("Pharmacy Support", "Adherence coaching & pill packs",
+                             "Enroll in adherence coaching and medication sync-and-pack"),
+    "Pharmacy_Fills": ("Pharmacy Support", "Mail-order & auto-refill enrollment",
+                       "Enroll in mail-order pharmacy with automatic refills"),
+    "Avg_Out_Of_Pocket_Cost": ("Benefit Education", "Cost-saving & assistance programs",
+                               "Explain cost-sharing assistance, savings programs and provider discounts"),
+    "Premium_Delay_Days": ("Benefit Education", "Premium payment plan & subsidies",
+                           "Set up a payment plan and check subsidy eligibility"),
+    "Billing_Issues": ("Benefit Education", "Billing audit & autopay enrollment",
+                       "Audit billing history and enroll in autopay"),
+    "Claim_Denials": ("Benefit Education", "Appeal support for denied claims",
+                      "File appeals for denied claims with utilization review"),
+    "Prior_Auth_Delays": ("Benefit Education", "Prior-auth expedite & case manager",
+                          "Expedite prior authorizations through a case manager"),
+    "Plan_Type": ("Benefit Education", "Plan-fit review & alternative match",
+                  "Review plan fit and match an alternative plan design"),
+    "Grievances_90d": ("Service Recovery", "Grievance resolution & escalation",
+                       "Resolve open grievances and escalate unresolved complaints"),
+    "Service_Contacts": ("Service Recovery", "Dedicated rep & root-cause fix",
+                         "Assign a dedicated rep to fix repeated service issues"),
+    "Star_Rating": ("Service Recovery", "Plan quality action plan",
+                    "Build a CMS star-rating improvement plan for the member's plan"),
+    "Chronic_Burden": ("Care Management", "Chronic care management enrollment",
+                       "Enroll in chronic care management with a nurse navigator"),
+    "BloodPressure": ("Care Management", "Hypertension care program",
+                      "Enroll in blood-pressure monitoring program"),
+    "Diabetes": ("Care Management", "Diabetes management program",
+                 "Enroll in diabetes management and glucose monitoring"),
+    "Hereditary_Diseases": ("Care Management", "Preventive genetics screening",
+                            "Offer preventive screening for hereditary risks"),
+    "Age": ("Care Management", "Preventive screening outreach",
+            "Age-appropriate preventive screening outreach"),
+    "Smoker": ("Wellness & Loyalty", "Smoking cessation & wellness coaching",
+               "Offer smoking-cessation and wellness coaching"),
+    "BMI": ("Wellness & Loyalty", "Weight management & nutrition program",
+            "Offer weight management and nutrition coaching"),
+    "Tenure_Months": ("Wellness & Loyalty", "Tenure loyalty reward",
+                      "Offer a loyalty reward for long-tenured members"),
+    "Dependents": ("Wellness & Loyalty", "Family coverage review",
+                   "Review family coverage and dependent benefits"),
+    "Dual_Eligible": ("Wellness & Loyalty", "Dual-eligible benefits coordination",
+                      "Coordinate Medicare-Medicaid benefits for the member"),
+}
+
 def map_action(feature):
-    f = feature.lower()
-    if "days_since_last_visit" in f or "satisfaction" in f or "missed_appointments" in f:
-        return "Care Outreach", "Re-engage member via nurse line / care coordinator"
+    """Returns (program, action, detail). Granular action per top SHAP driver."""
+    f = feature.lower().replace("num__", "").replace("cat__", "")
+    for key, (prog, act, det) in ACTION_RULES.items():
+        if f == key.lower():
+            return prog, act, det
+    if "days_since_last_visit" in f:
+        return ACTION_RULES["Days_Since_Last_Visit"]
+    if "satisfaction" in f:
+        return ACTION_RULES["Overall_Satisfaction"]
     if "cost" in f or "premium" in f or "billing" in f or "denial" in f or "prior_auth" in f:
-        return "Benefit Education", "Explain coverage, savings programs, appeal denied claims"
+        return ACTION_RULES["Avg_Out_Of_Pocket_Cost"]
     if "pharmacy" in f or "adherence" in f or "medication" in f:
-        return "Pharmacy Support", "Medication adherence program / mail-order enrollment"
+        return ACTION_RULES["Medication_Adherence"]
     if "grievance" in f or "service" in f or "star_rating" in f or "rural" in f:
-        return "Service Recovery", "Resolve complaints, improve access, escalate to retention team"
+        return ACTION_RULES["Grievances_90d"]
     if "plan" in f:
-        return "Benefit Education", "Educate on plan benefits and alternatives"
-    return "Care Outreach", "Standard retention touchpoint"
+        return ACTION_RULES["Plan_Type"]
+    if "distance" in f:
+        return ACTION_RULES["Distance_To_Facility_Miles"]
+    return "Care Outreach", "Standard retention touchpoint", "Care-coordinator follow-up"
 
 DRIVER_CACHE = {}
 ACTION_COUNTS = {}
@@ -64,13 +144,14 @@ def get_explainer():
 
 def build_shap_cache():
     global _explainer
-    pipe = pipelines["XGBoost"]
-    _explainer = shap.TreeExplainer(pipe.named_steps["model"])
+    model = pipelines["XGBoost"]
+    raw_model = model.named_steps['model']  # Extract model from Pipeline
+    _explainer = shap.TreeExplainer(raw_model)
     cache = preds if len(preds) <= 3000 else preds.sample(3000, random_state=42)
     x = cache[input_cols]
-    x_t = pipe.named_steps["pre"].transform(x)
+    x_t = preprocessor.transform(x)
     sv = _explainer.shap_values(x_t)
-    fnames = pipe.named_steps["pre"].get_feature_names_out()
+    fnames = preprocessor.get_feature_names_out()
     mean_abs = np.abs(sv).mean(axis=0)
     order = np.argsort(-mean_abs)
     GLOBAL_DRIVERS.extend([
@@ -81,11 +162,11 @@ def build_shap_cache():
         top_idx = np.argsort(-sv[pos])[:3]
         drivers = []
         for i in top_idx:
-            action, detail = map_action(fnames[i])
+            program, action, detail = map_action(fnames[i])
             drivers.append({"feature": clean_name(fnames[i]), "score": round(float(sv[pos, i]), 3),
-                            "action": action, "detail": detail})
+                            "program": program, "action": action, "detail": detail})
         DRIVER_CACHE[member_id] = drivers
-        ACTION_COUNTS[drivers[0]["action"]] = ACTION_COUNTS.get(drivers[0]["action"], 0) + 1
+        ACTION_COUNTS[drivers[0]["program"]] = ACTION_COUNTS.get(drivers[0]["program"], 0) + 1
 
 print("App ready — upload a dataset to start")
 
@@ -127,10 +208,6 @@ def dataset():
         "has_data": p is not None,
     })
 
-@app.route("/")
-def index():
-    return render_template("index.html")
-
 @app.route("/api/overview")
 def overview():
     if ACTIVE["preds"] is None:
@@ -142,7 +219,7 @@ def overview():
     low = int((p["Risk"] == "LOW").sum())
     action_counts = {}
     for member_id, drivers in ACTIVE["drivers"].items():
-        action = drivers[0]["action"]
+        action = drivers[0]["program"]
         action_counts[action] = action_counts.get(action, 0) + 1
     return jsonify({
         "total": n,
@@ -180,6 +257,7 @@ def members():
             "prob": round(float(r["Churn_Probability"]) * 100, 1),
             "risk": r["Risk"],
             "driver": drv[0]["feature"] if drv else "—",
+            "program": drv[0]["program"] if drv else "—",
             "action": drv[0]["action"] if drv else "—",
         })
     return jsonify({
@@ -263,8 +341,8 @@ def predict_upload():
         X_u[c] = (user[c].fillna(CAT_MODES[c]).astype(str) if c in user.columns else CAT_MODES[c])
 
     proba = np.zeros(len(user))
-    for name, pipe in pipelines.items():
-        proba += weights[name] * pipe.predict_proba(X_u[input_cols])[:, 1]
+    for name, model in pipelines.items():
+        proba += weights[name] * model.predict_proba(X_u[input_cols])[:, 1]
     proba /= sum(weights.values())
 
     drivers_map = {}
@@ -279,9 +357,9 @@ def predict_upload():
         rest = np.setdiff1d(np.arange(n), top_risk)
         sample_idx = np.concatenate([top_risk, np.random.default_rng(42).choice(rest, SHAP_CAP - 500, replace=False)])
         warnings.append(f"Driver explanations computed on a stratified sample of {SHAP_CAP} members (file has {n:,})")
-    x_t = pipelines["XGBoost"].named_steps["pre"].transform(X_u.iloc[sample_idx][input_cols])
+    x_t = preprocessor.transform(X_u.iloc[sample_idx][input_cols])
     sv = get_explainer().shap_values(x_t)
-    fnames = pipelines["XGBoost"].named_steps["pre"].get_feature_names_out()
+    fnames = preprocessor.get_feature_names_out()
     top3 = np.argsort(-sv, axis=1)[:, :3]
     mean_abs = np.abs(sv).mean(axis=0)
     order = np.argsort(-mean_abs)
@@ -293,18 +371,19 @@ def predict_upload():
         drv = []
         for j in range(3):
             feat = fnames[top3[k, j]]
-            action, detail = map_action(feat)
+            program, action, detail = map_action(feat)
             drv.append({"feature": clean_name(feat), "score": round(float(sv[k, top3[k, j]]), 3),
-                        "action": action, "detail": detail})
+                        "program": program, "action": action, "detail": detail})
         drivers_map[str(ids[pos])] = drv
-        action_counts[drv[0]["action"]] = action_counts.get(drv[0]["action"], 0) + 1
+        action_counts[drv[0]["program"]] = action_counts.get(drv[0]["program"], 0) + 1
         driver_col[pos] = drv[0]["feature"]
         action_col[pos] = drv[0]["action"]
-    fallback_action, fallback_detail = map_action(global_top)
+    fallback_program, fallback_action, fallback_detail = map_action(global_top)
     for pos in np.setdiff1d(np.arange(n), sample_idx):       # fallback: global top driver
         drivers_map[str(ids[pos])] = [{"feature": global_top, "score": 0.0,
-                                       "action": fallback_action, "detail": fallback_detail}]
-        action_counts[fallback_action] = action_counts.get(fallback_action, 0) + 1
+                                       "program": fallback_program, "action": fallback_action,
+                                       "detail": fallback_detail}]
+        action_counts[fallback_program] = action_counts.get(fallback_program, 0) + 1
         driver_col[pos] = global_top
         action_col[pos] = fallback_action
 
@@ -369,8 +448,8 @@ def predict_single():
             X_u[c] = str(v)
 
     proba = np.zeros(1)
-    for name, pipe in pipelines.items():
-        proba += weights[name] * pipe.predict_proba(X_u[input_cols])[:, 1]
+    for name, model in pipelines.items():
+        proba += weights[name] * model.predict_proba(X_u[input_cols])[:, 1]
     proba /= sum(weights.values())
     p = float(proba[0])
     risk = risk_label(p)
@@ -378,13 +457,13 @@ def predict_single():
     drivers = []
     contributions = []
     try:
-        x_t = pipelines["XGBoost"].named_steps["pre"].transform(X_u[input_cols])
+        x_t = preprocessor.transform(X_u[input_cols])
         sv = get_explainer().shap_values(x_t)[0]
-        fnames = pipelines["XGBoost"].named_steps["pre"].get_feature_names_out()
+        fnames = preprocessor.get_feature_names_out()
         order = np.argsort(-np.abs(sv))
         top3 = order[:3]
         for i in top3:
-            action, detail = map_action(fnames[i])
+            program, action, detail = map_action(fnames[i])
             drivers.append({"feature": clean_name(fnames[i]), "score": round(float(sv[i]), 3),
                             "action": action, "detail": detail})
         contributions = [{"feature": clean_name(fnames[i]), "score": round(float(sv[i]), 4)}
@@ -406,6 +485,13 @@ def predict_single():
 @app.route("/api/download/<fname>")
 def download(fname):
     return send_from_directory(UPLOAD_DIR, fname, as_attachment=True)
+
+# Serve React app for all non-API routes (except root which is handled above)
+@app.route('/<path:path>')
+def serve_react(path):
+    if path.startswith('api/'):
+        return jsonify({"error": "Not found"}), 404
+    return send_from_directory(app.static_folder, 'index.html')
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8501)), threaded=True)
