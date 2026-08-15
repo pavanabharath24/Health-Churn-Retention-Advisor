@@ -15,12 +15,11 @@ export default function RetentionAdvisor({ hasData }) {
     setData(d);
   };
 
-  if (!hasData) {
+if (!hasData) {
     return (
       <div className="empty-state">
-        <div className="empty-icon">📋</div>
-        <h3>No Data Loaded</h3>
-        <p>Upload data in Overview to see retention actions</p>
+        <h3 className="empty-title">No Data Loaded</h3>
+        <p className="empty-desc">Upload data in Overview to see retention actions</p>
       </div>
     );
   }
@@ -50,9 +49,9 @@ export default function RetentionAdvisor({ hasData }) {
         <p>Recommended action for every member</p>
       </div>
 
-      <div className="action-cards" style={{ marginBottom: '1.5rem' }}>
+      <div className="action-cards" style={{ marginBottom: '1rem' }}>
         {programLabels.map(name => (
-          <div key={name} className="action-card" style={{ background: `linear-gradient(135deg, ${programColors[name] || '#4f46e5'}, ${programColors[name] || '#4f46e5'}dd)` }}>
+          <div key={name} className="action-card" style={{ background: `linear-gradient(135deg, ${programColors[name] || '#64748b'}, ${programColors[name] || '#64748b'}dd)` }}>
             <div className="ac-num">{programs[name]}</div>
             <div className="ac-lbl">{name}</div>
           </div>
@@ -82,13 +81,13 @@ export default function RetentionAdvisor({ hasData }) {
           </thead>
           <tbody>
             {filteredMembers?.map(m => (
-              <tr key={m.id}>
+              <tr key={m.id} onMouseOver={() => rowHover(m.id)} onMouseOut={() => rowHoverReset(m.id)} style={{ cursor: 'pointer' }}>
                 <td><strong>{m.id}</strong></td>
                 <td>{m.prob}%</td>
                 <td><span className={`badge badge-${m.risk.toLowerCase()}`}>{m.risk}</span></td>
                 <td>{m.driver}</td>
-                <td style={{ color: programColors[m.program] || '#4f46e5', fontWeight: 600 }}>{m.program}</td>
-                <td>{m.action}</td>
+                <td style={{ color: programColors[m.program] || '#64748b', fontWeight: 500 }}>{m.program}</td>
+                <td style={{ color: programColors[m.action] || '#64748b', fontWeight: 500 }}>{m.action}</td>
               </tr>
             ))}
           </tbody>

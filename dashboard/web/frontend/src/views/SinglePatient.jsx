@@ -40,9 +40,8 @@ export default function SinglePatient({ hasData, onPredict, patientData }) {
   if (!hasData && !result) {
     return (
       <div className="empty-state">
-        <div className="empty-icon">👤</div>
-        <h3>Single Patient Assessment</h3>
-        <p>Fill the sidebar form or click a member to assess</p>
+        <h3 className="empty-title">Single Patient Assessment</h3>
+        <p className="empty-desc">Fill the form or click a member to assess churn risk</p>
       </div>
     );
   }
@@ -58,7 +57,7 @@ export default function SinglePatient({ hasData, onPredict, patientData }) {
         <div className="card">
           <div className="section-title">Patient Details</div>
           <form onSubmit={handleSubmit}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.7rem' }}>
               <div>
                 <label className="pf-label">MemberID</label>
                 <input className="pf-input" value={form.MemberID} onChange={e => setForm({...form, MemberID: e.target.value})} />
@@ -99,8 +98,8 @@ export default function SinglePatient({ hasData, onPredict, patientData }) {
                 </select>
               </div>
             </div>
-            <button className="btn" type="submit" disabled={loading} style={{ marginTop: '1rem' }}>
-              {loading ? 'Assessing...' : '🧠 Assess Risk'}
+            <button className="btn" type="submit" disabled={loading} style={{ marginTop: '0.7rem', width: '100%' }}>
+              {loading ? 'Assessing...' : 'Assess Risk'}
             </button>
           </form>
         </div>
@@ -109,32 +108,35 @@ export default function SinglePatient({ hasData, onPredict, patientData }) {
           <div className="card">
             <div className="section-title">Assessment Result</div>
             <div style={{ textAlign: 'center', padding: '1rem' }}>
-              <div style={{ fontSize: '3rem', fontWeight: 800, color: result.risk === 'HIGH' ? '#ef4444' : result.risk === 'MEDIUM' ? '#f97316' : '#22c55e' }}>
+              <div style={{ fontSize: '2.8rem', fontWeight: 800, color: result.risk === 'HIGH' ? '#fca5a5' : result.risk === 'MEDIUM' ? '#fbbf24' : '#84cc16' }}>
                 {result.prob}%
               </div>
-              <div className={`badge badge-${result.risk.toLowerCase()}`} style={{ margin: '0.5rem auto', display: 'inline-block' }}>
+              <div style={{ margin: '0.7rem auto', display: 'inline-block', padding: '0.5rem 0.8rem', borderRadius: '0.5rem', fontWeight: 500, fontSize: '0.85rem' }}>
                 {result.risk} RISK
               </div>
-              <div className="action-badge" style={{ marginTop: '1rem', background: `linear-gradient(135deg, ${PROGRAM_COLORS[result.program] || '#4f46e5'}, ${PROGRAM_COLORS[result.program] || '#4f46e5'}dd)` }}>
+              <div className="action-badge" style={{ margin: '0.7rem auto 0 auto', padding: '0.6rem 0.8rem', borderRadius: '0.5rem', fontWeight: 550, fontSize: '0.8rem', textAlign: 'center', background: `linear-gradient(135deg, ${PROGRAM_COLORS[result.program] || '#64748b'}, ${PROGRAM_COLORS[result.program] || '#64748b'}dd)` }}>
                 {result.program} — {result.action}
               </div>
-              <p style={{ color: '#6b7280' }}>{result.detail}</p>
-              <p className="feature-desc">Member value at risk: ${result.member_value?.toLocaleString()}/year</p>
+              <p style={{ color: '#94a3b8', margin: '0.5rem 0 0.8rem 0' }}>Member value at risk: ${result.member_value?.toLocaleString()}/year</p>
             </div>
 
-            <div className="section-title" style={{ marginTop: '1.5rem' }}>Top Drivers</div>
+            <div className="section-title" style={{ marginTop: '1.2rem' }}>Top Drivers</div>
             <div style={{ height: '200px' }}>
               <Bar 
                 data={{
                   labels: result.drivers?.map(d => d.feature) || [],
-                  datasets: [{ label: 'SHAP Score', data: result.drivers?.map(d => d.score) || [], backgroundColor: '#4f46e5' }],
+                  datasets: [{ 
+                    label: 'SHAP Score', 
+                    data: result.drivers?.map(d => d.score) || [], 
+                    backgroundColor: result.drivers?.map(d => d.score >= 0 ? '#22c55e' : '#f87171') || [],
+                  }],
                 }} 
                 options={{ indexAxis: 'y', responsive: true, plugins: { legend: { display: false } } }} 
               />
             </div>
 
-            <button className="btn" style={{ marginTop: '1rem', width: '100%' }} onClick={() => alert('Outreach triggered!')}>
-              📞 Trigger Outreach
+            <button className="btn" style={{ marginTop: '0.7rem', width: '100%', padding: '0.55rem 0.7rem' }} onClick={() => alert('Outreach initiated for ' + result.MemberID)}>
+              Initiate Outreach
             </button>
           </div>
         )}

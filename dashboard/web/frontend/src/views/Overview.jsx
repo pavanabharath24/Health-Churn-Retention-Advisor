@@ -28,12 +28,11 @@ export default function Overview({ hasData, onUpload, onReset }) {
   if (!hasData && !data) {
     return (
       <div className="empty-state">
-        <div className="empty-icon">📁</div>
-        <h3>No Data Loaded</h3>
-        <p>Upload a CSV with member data to begin</p>
+        <h3 className="empty-title">No Data Loaded</h3>
+        <p className="empty-desc">Upload a CSV with member data to begin</p>
         <input type="file" accept=".csv" onChange={(e) => setFile(e.target.files[0])} />
         <button className="btn" onClick={handleUpload} disabled={loading || !file}>
-          {loading ? 'Uploading...' : '🚀 Show Results'}
+          {loading ? 'Uploading...' : 'Begin Analysis'}
         </button>
       </div>
     );
@@ -42,11 +41,10 @@ export default function Overview({ hasData, onUpload, onReset }) {
   if (!data) {
     return (
       <div className="empty-state">
-        <div className="empty-icon">📁</div>
-        <h3>Ready to Analyze</h3>
-        <p>File selected: <strong>{file?.name}</strong></p>
+        <h3 className="empty-title">Ready to Analyze</h3>
+        <p className="empty-desc">File selected: <strong>{file?.name}</strong></p>
         <button className="btn" onClick={handleUpload} disabled={loading}>
-          {loading ? 'Uploading...' : '🚀 Show Results'}
+          {loading ? 'Uploading...' : 'Begin Analysis'}
         </button>
         <button className="btn secondary" onClick={() => { setFile(null); onReset?.(); }}>
           Clear

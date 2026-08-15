@@ -19,9 +19,8 @@ export default function MemberRiskList({ hasData, onMemberClick }) {
   if (!hasData) {
     return (
       <div className="empty-state">
-        <div className="empty-icon">👥</div>
-        <h3>No Member Data</h3>
-        <p>Upload data in Overview to see risk list</p>
+        <h3 className="empty-title">No Member Data</h3>
+        <p className="empty-desc">Upload data in Overview to see risk list</p>
       </div>
     );
   }

@@ -12,12 +12,11 @@ export default function FeatureChart({ hasData, contributions }) {
     if (contributions) setData(contributions);
   }, [contributions]);
 
-  if (!hasData || !data.length) {
+if (!hasData || !data.length) {
     return (
       <div className="empty-state">
-        <div className="empty-icon">📊</div>
-        <h3>Feature Chart</h3>
-        <p>Assess a patient or click a member to see SHAP contributions</p>
+        <h3 className="empty-title">Feature Chart</h3>
+        <p className="empty-desc">Assess a patient or click a member to see SHAP contributions</p>
       </div>
     );
   }
@@ -25,28 +24,35 @@ export default function FeatureChart({ hasData, contributions }) {
   return (
     <div className="view">
       <div className="topbar">
-        <h1>Feature Chart (SHAP)</h1>
-        <p>Red = pushes churn UP | Green = pushes churn DOWN</p>
+        <h1>Feature Chart (SHAP</h1>
+        <p>Red features increase churn risk; Green features decrease it</p>
       </div>
 
       <div className="card">
         <div className="section-title">SHAP Contributions</div>
-        <p className="feature-desc">Each bar shows how much each feature contributes to this member's churn probability.</p>
-        <div style={{ height: '400px' }}>
+        <p className="feature-desc">Each bar shows how much a feature pushes churn probability up (red) or down (green) for this member.</p>
+        <div style={{ height: '420px' }}>
           <Bar 
             data={{
               labels: data.map(d => d.feature),
               datasets: [{
                 label: 'SHAP Value',
                 data: data.map(d => d.score),
-                backgroundColor: data.map(d => d.score > 0 ? '#ef4444' : '#22c55e'),
+                backgroundColor: data.map(d => d.score >= 0 ? '#fca5a5' : '#22c55e'),
               }],
             }} 
             options={{ 
               indexAxis: 'y', 
               responsive: true, 
               plugins: { legend: { display: false } },
-              scales: { x: { title: { display: true, text: 'SHAP Value (positive = higher churn risk)' } } },
+              scales: { 
+                x: { 
+                  title: { display: true, text: 'SHAP Value (positive = higher churn risk)' },
+                  ticks: { color: '#64748b' },
+                  title: { color: '#1e293b' }
+                },
+                y: { ticks: { color: '#64748b' } }
+              },
             }} 
           />
         </div>

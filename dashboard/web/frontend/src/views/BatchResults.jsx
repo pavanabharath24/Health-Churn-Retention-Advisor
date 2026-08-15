@@ -21,12 +21,11 @@ export default function BatchResults({ hasData, downloadUrl }) {
     }
   }, [hasData, downloadUrl]);
 
-  if (!hasData) {
+if (!hasData) {
     return (
       <div className="empty-state">
-        <div className="empty-icon">📤</div>
-        <h3>No Batch Results</h3>
-        <p>Upload data in Overview to see batch results</p>
+        <h3 className="empty-title">No Batch Results</h3>
+        <p className="empty-desc">No prediction data available</p>
       </div>
     );
   }

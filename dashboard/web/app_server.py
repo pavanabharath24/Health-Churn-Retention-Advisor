@@ -8,24 +8,14 @@ import joblib
 import shap
 from flask import Flask, jsonify, render_template, request, send_from_directory
 
-app = Flask(__name__, static_folder=None)
+app = Flask(__name__, static_folder="static", template_folder="templates")
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
-STATIC_DIR = os.path.join(os.path.dirname(APP_DIR), "static", "react")
 UPLOAD_DIR = os.path.join(APP_DIR, "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-# Serve React app at root
 @app.route('/')
-def serve_react_root():
-    return send_from_directory(STATIC_DIR, 'index.html')
-
-@app.route('/favicon.svg')
-def serve_favicon():
-    return send_from_directory(STATIC_DIR, 'favicon.svg')
-
-@app.route('/assets/<path:path>')
-def serve_assets(path):
-    return send_from_directory(os.path.join(STATIC_DIR, 'assets'), path)
+def serve_root():
+    return render_template('index.html')
 
 # Load the expanded model
 model_artifacts = joblib.load("models/expanded_final_pipelines.pkl")
@@ -496,17 +486,12 @@ def predict_single():
 def download(fname):
     return send_from_directory(UPLOAD_DIR, fname, as_attachment=True)
 
-# Serve React app for all non-API routes (except root which is handled above)
+# Fallback catch-all for single page app routing
 @app.route('/<path:path>')
-def serve_react(path):
+def catch_all(path):
     if path.startswith('api/'):
         return jsonify({"error": "Not found"}), 404
-    # Explicitly serve static assets and favicon
-    if path.startswith('assets/'):
-        return send_from_directory(os.path.join(STATIC_DIR, 'assets'), path[7:])  # remove 'assets/' prefix
-    if path == 'favicon.svg':
-        return send_from_directory(STATIC_DIR, 'favicon.svg')
-    return send_from_directory(STATIC_DIR, 'index.html')
+    return render_template('index.html')
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8501)), threaded=True)
