@@ -8,14 +8,24 @@ import joblib
 import shap
 from flask import Flask, jsonify, render_template, request, send_from_directory
 
-app = Flask(__name__, static_folder='../static/react', static_url_path='/static')
-UPLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads")
+app = Flask(__name__, static_folder=None)
+APP_DIR = os.path.dirname(os.path.abspath(__file__))
+STATIC_DIR = os.path.join(os.path.dirname(APP_DIR), "static", "react")
+UPLOAD_DIR = os.path.join(APP_DIR, "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 # Serve React app at root
 @app.route('/')
 def serve_react_root():
-    return send_from_directory(app.static_folder, 'index.html')
+    return send_from_directory(STATIC_DIR, 'index.html')
+
+@app.route('/favicon.svg')
+def serve_favicon():
+    return send_from_directory(STATIC_DIR, 'favicon.svg')
+
+@app.route('/assets/<path:path>')
+def serve_assets(path):
+    return send_from_directory(os.path.join(STATIC_DIR, 'assets'), path)
 
 # Load the expanded model
 model_artifacts = joblib.load("models/expanded_final_pipelines.pkl")
@@ -32,7 +42,7 @@ weights = joblib.load("models/final_weights.pkl")
 preds = pd.read_csv("data/all_predictions.csv")
 MEMBER_VALUE_YEAR = 1800.0
 
-_train = pd.read_csv("data/A.0_train.csv")
+_train = pd.read_csv("data/real_world/A.0_train.csv")
 MEDIANS = _train[NUM_COLS].median()
 CAT_MODES = {c: _train[c].mode().iloc[0] for c in CAT_COLS}
 
@@ -491,7 +501,7 @@ def download(fname):
 def serve_react(path):
     if path.startswith('api/'):
         return jsonify({"error": "Not found"}), 404
-    return send_from_directory(app.static_folder, 'index.html')
+    return send_from_directory(STATIC_DIR, 'index.html')
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8501)), threaded=True)
