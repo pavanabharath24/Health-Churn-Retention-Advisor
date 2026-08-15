@@ -501,6 +501,11 @@ def download(fname):
 def serve_react(path):
     if path.startswith('api/'):
         return jsonify({"error": "Not found"}), 404
+    # Explicitly serve static assets and favicon
+    if path.startswith('assets/'):
+        return send_from_directory(os.path.join(STATIC_DIR, 'assets'), path[7:])  # remove 'assets/' prefix
+    if path == 'favicon.svg':
+        return send_from_directory(STATIC_DIR, 'favicon.svg')
     return send_from_directory(STATIC_DIR, 'index.html')
 
 if __name__ == "__main__":
