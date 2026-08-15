@@ -21,7 +21,7 @@ MEMBER_VALUE_YEAR = 1800.0
 
 CAT_COLS = ["Sex", "City", "Hereditary_Diseases", "Plan_Type"]
 NUM_COLS = [c for c in input_cols if c not in CAT_COLS]
-_train = pd.read_csv("data/final_train.csv")
+_train = pd.read_csv("data/dataset_a_train.csv")
 MEDIANS = _train[NUM_COLS].median()
 CAT_MODES = {c: _train[c].mode().iloc[0] for c in CAT_COLS}
 
@@ -66,7 +66,8 @@ def build_shap_cache():
     global _explainer
     pipe = pipelines["XGBoost"]
     _explainer = shap.TreeExplainer(pipe.named_steps["model"])
-    x = preds[input_cols]
+    cache = preds if len(preds) <= 3000 else preds.sample(3000, random_state=42)
+    x = cache[input_cols]
     x_t = pipe.named_steps["pre"].transform(x)
     sv = _explainer.shap_values(x_t)
     fnames = pipe.named_steps["pre"].get_feature_names_out()
@@ -76,7 +77,7 @@ def build_shap_cache():
         {"feature": clean_name(fnames[i]), "importance": round(float(mean_abs[i]), 4)}
         for i in order[:10]
     ])
-    for pos, member_id in enumerate(preds["MemberID"]):
+    for pos, member_id in enumerate(cache["MemberID"]):
         top_idx = np.argsort(-sv[pos])[:3]
         drivers = []
         for i in top_idx:
@@ -269,29 +270,43 @@ def predict_upload():
     drivers_map = {}
     action_counts = {}
     global_drivers = []
-    if len(user) <= 5000:
-        x_t = pipelines["XGBoost"].named_steps["pre"].transform(X_u[input_cols])
-        sv = get_explainer().shap_values(x_t)
-        fnames = pipelines["XGBoost"].named_steps["pre"].get_feature_names_out()
-        top3 = np.argsort(-sv, axis=1)[:, :3]
-        mean_abs = np.abs(sv).mean(axis=0)
-        order = np.argsort(-mean_abs)
-        global_drivers = [{"feature": clean_name(fnames[i]), "importance": round(float(mean_abs[i]), 4)} for i in order[:10]]
-        driver_col = [clean_name(fnames[top3[i, 0]]) for i in range(len(user))]
-        action_col = [map_action(fnames[top3[i, 0]])[0] for i in range(len(user))]
-        for i in range(len(user)):
-            drv = []
-            for j in range(3):
-                feat = fnames[top3[i, j]]
-                action, detail = map_action(feat)
-                drv.append({"feature": clean_name(feat), "score": round(float(sv[i, top3[i, j]]), 3),
-                            "action": action, "detail": detail})
-            drivers_map[str(ids[i])] = drv
-            action_counts[drv[0]["action"]] = action_counts.get(drv[0]["action"], 0) + 1
+    n = len(user)
+    SHAP_CAP = 3000
+    if n <= SHAP_CAP:
+        sample_idx = np.arange(n)
     else:
-        driver_col = [""] * len(user)
-        action_col = [""] * len(user)
-        warnings.append("Driver explanation skipped — SHAP computed for up to 5,000 rows to keep the open-source service fast")
+        top_risk = np.argsort(-proba)[:500]                    # biggest-risk members always explained
+        rest = np.setdiff1d(np.arange(n), top_risk)
+        sample_idx = np.concatenate([top_risk, np.random.default_rng(42).choice(rest, SHAP_CAP - 500, replace=False)])
+        warnings.append(f"Driver explanations computed on a stratified sample of {SHAP_CAP} members (file has {n:,})")
+    x_t = pipelines["XGBoost"].named_steps["pre"].transform(X_u.iloc[sample_idx][input_cols])
+    sv = get_explainer().shap_values(x_t)
+    fnames = pipelines["XGBoost"].named_steps["pre"].get_feature_names_out()
+    top3 = np.argsort(-sv, axis=1)[:, :3]
+    mean_abs = np.abs(sv).mean(axis=0)
+    order = np.argsort(-mean_abs)
+    global_drivers = [{"feature": clean_name(fnames[i]), "importance": round(float(mean_abs[i]), 4)} for i in order[:10]]
+    global_top = clean_name(fnames[order[0]])
+    driver_col = [""] * n
+    action_col = [""] * n
+    for k, pos in enumerate(sample_idx):
+        drv = []
+        for j in range(3):
+            feat = fnames[top3[k, j]]
+            action, detail = map_action(feat)
+            drv.append({"feature": clean_name(feat), "score": round(float(sv[k, top3[k, j]]), 3),
+                        "action": action, "detail": detail})
+        drivers_map[str(ids[pos])] = drv
+        action_counts[drv[0]["action"]] = action_counts.get(drv[0]["action"], 0) + 1
+        driver_col[pos] = drv[0]["feature"]
+        action_col[pos] = drv[0]["action"]
+    fallback_action, fallback_detail = map_action(global_top)
+    for pos in np.setdiff1d(np.arange(n), sample_idx):       # fallback: global top driver
+        drivers_map[str(ids[pos])] = [{"feature": global_top, "score": 0.0,
+                                       "action": fallback_action, "detail": fallback_detail}]
+        action_counts[fallback_action] = action_counts.get(fallback_action, 0) + 1
+        driver_col[pos] = global_top
+        action_col[pos] = fallback_action
 
     risks = np.where(proba >= 0.7, "HIGH", np.where(proba >= 0.4, "MEDIUM", "LOW"))
 
