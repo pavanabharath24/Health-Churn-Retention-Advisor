@@ -595,10 +595,10 @@ async function uploadFile(file) {
 
 // Add CSS for spin animation dynamically
 const style = document.createElement('style');
-style.textContent = \`
+style.textContent = `
 @keyframes spin { 100% { transform: rotate(360deg); } }
 .spin { animation: spin 2s linear infinite; }
-\`;
+`;
 document.head.appendChild(style);
 
 document.addEventListener("DOMContentLoaded", refreshDatasetBadge);
