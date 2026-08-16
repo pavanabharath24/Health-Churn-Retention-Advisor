@@ -582,11 +582,11 @@ async function uploadFile(file) {
     const d = await res.json();
     if (d.error) throw new Error(d.error);
     
-    $("upload-status").innerHTML = `<div class="upload-ok"><svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Success! Scored ${d.rows_scored.toLocaleString()} members.</div>`;
+    $("upload-status").innerHTML = `<div class="upload-ok"><svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Success! Scored ${d.total.toLocaleString()} members.</div>`;
     lastDownloadUrl = d.download_url;
     pendingFile = null;
     await refreshDatasetBadge();
-    showToast(`Scored ${d.rows_scored.toLocaleString()} members successfully`, "success");
+    showToast(`Scored ${d.total.toLocaleString()} members successfully`, "success");
   } catch (err) {
     $("upload-status").innerHTML = `<div class="upload-error"><svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg> Error: ${err.message}</div>`;
     $("show-results").classList.remove("hidden");
