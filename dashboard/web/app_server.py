@@ -265,8 +265,8 @@ def members():
             "prob": round(float(r["Churn_Probability"]) * 100, 1),
             "risk": r["Risk"],
             "driver": drv[0]["feature"] if drv else "—",
-            "program": drv[0]["program"] if drv else "—",
-            "action": drv[0]["action"] if drv else "—",
+            "program": drv[0].get("program", drv[0].get("action", "—")) if drv else "—",
+            "action": drv[0].get("action", "—") if drv else "—",
         })
     return jsonify({
         "count": len(view),
@@ -289,9 +289,9 @@ def member(member_id):
         "prob": round(float(row["Churn_Probability"]) * 100, 1),
         "risk": row["Risk"],
         "drivers": drivers,
-        "program": drivers[0]["program"] if drivers else "",
-        "action": drivers[0]["action"] if drivers else "",
-        "detail": drivers[0]["detail"] if drivers else "",
+        "program": drivers[0].get("program", drivers[0].get("action", "")) if drivers else "",
+        "action": drivers[0].get("action", "") if drivers else "",
+        "detail": drivers[0].get("detail", "") if drivers else "",
     })
 
 @app.route("/api/impact")
