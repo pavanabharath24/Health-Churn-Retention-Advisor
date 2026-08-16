@@ -23,6 +23,9 @@ const ACTION_META = {
   "Benefit Education": ["ac-benefit", `<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>`],
   "Pharmacy Support": ["ac-pharmacy", `<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M8 12h8"></path><path d="M12 8v8"></path></svg>`],
   "Service Recovery": ["ac-service", `<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>`],
+  "Access Support": ["ac-access", `<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>`],
+  "Care Management": ["ac-care-mgmt", `<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>`],
+  "Wellness & Loyalty": ["ac-wellness", `<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>`],
 };
 
 function animateValue(obj, start, end, duration) {
@@ -331,10 +334,8 @@ async function showMember(id, tr) {
   const [cls, icon] = ACTION_META[d.action] || ["ac-care", ""];
   const badge = $("d-action");
   badge.innerHTML = `${icon} ${d.action || "No action"}`;
-  badge.style.background = cls === "ac-care" ? "linear-gradient(135deg,#0e7490,#0891b2)"
-    : cls === "ac-benefit" ? "linear-gradient(135deg,#4338ca,#6366f1)"
-    : cls === "ac-pharmacy" ? "linear-gradient(135deg,#6d28d9,#8b5cf6)"
-    : "linear-gradient(135deg,#b45309,#d97706)";
+  badge.className = `action-badge ${cls}`;
+  badge.style.background = ""; // remove inline style
   $("d-detail").textContent = d.detail || "";
   detail.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
@@ -370,7 +371,7 @@ function renderDriversList(box, drivers) {
 async function loadAdvisor() {
   const d = await api("/api/members?risk=ALL");
   const summary = {};
-  const ORDER = ["Care Outreach", "Benefit Education", "Pharmacy Support", "Service Recovery"];
+  const ORDER = ["Care Outreach", "Benefit Education", "Pharmacy Support", "Service Recovery", "Access Support", "Care Management", "Wellness & Loyalty"];
   d.members.forEach(m => { summary[m.action] = (summary[m.action] || 0) + 1; });
   const box = $("advisor-summary");
   box.innerHTML = "";
@@ -505,10 +506,8 @@ function renderSingle(d) {
   const [cls, icon] = ACTION_META[d.action] || ["ac-care", ""];
   const badge = $("s-action");
   badge.innerHTML = `${icon} ${d.action || "No action"}`;
-  badge.style.background = cls === "ac-care" ? "linear-gradient(135deg,#0e7490,#0891b2)"
-    : cls === "ac-benefit" ? "linear-gradient(135deg,#4338ca,#6366f1)"
-    : cls === "ac-pharmacy" ? "linear-gradient(135deg,#6d28d9,#8b5cf6)"
-    : "linear-gradient(135deg,#b45309,#d97706)";
+  badge.className = `action-badge ${cls}`;
+  badge.style.background = ""; // remove inline style
   $("s-detail").textContent = d.detail || "";
 }
 

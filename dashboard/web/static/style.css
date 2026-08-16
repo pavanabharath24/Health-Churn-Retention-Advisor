@@ -229,6 +229,9 @@ body {
 .ac-benefit { background: linear-gradient(135deg, #4338ca, #6366f1); }
 .ac-pharmacy { background: linear-gradient(135deg, #6d28d9, #8b5cf6); }
 .ac-service { background: linear-gradient(135deg, #b45309, #d97706); }
+.ac-access { background: linear-gradient(135deg, #059669, #10b981); }
+.ac-care-mgmt { background: linear-gradient(135deg, #be123c, #f43f5e); }
+.ac-wellness { background: linear-gradient(135deg, #c2410c, #f97316); }
 
 .member-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1.2rem; flex-wrap: wrap; }
 .filters { display: flex; gap: 0.5rem; flex-wrap: wrap;}
