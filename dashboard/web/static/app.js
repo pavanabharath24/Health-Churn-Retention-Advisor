@@ -331,9 +331,9 @@ async function showMember(id, tr) {
 
   renderDriversList($("d-drivers"), d.drivers);
 
-  const [cls, icon] = ACTION_META[d.action] || ["ac-care", ""];
+  const [cls, icon] = ACTION_META[d.program] || ["ac-care", ""];
   const badge = $("d-action");
-  badge.innerHTML = `${icon} ${d.action || "No action"}`;
+  badge.innerHTML = `${icon} ${d.program || "No action"}`;
   badge.className = `action-badge ${cls}`;
   badge.style.background = ""; // remove inline style
   $("d-detail").textContent = d.detail || "";
@@ -372,7 +372,7 @@ async function loadAdvisor() {
   const d = await api("/api/members?risk=ALL");
   const summary = {};
   const ORDER = ["Care Outreach", "Benefit Education", "Pharmacy Support", "Service Recovery", "Access Support", "Care Management", "Wellness & Loyalty"];
-  d.members.forEach(m => { summary[m.action] = (summary[m.action] || 0) + 1; });
+  d.members.forEach(m => { summary[m.program] = (summary[m.program] || 0) + 1; });
   const box = $("advisor-summary");
   box.innerHTML = "";
   ORDER.forEach((name, idx) => {
@@ -386,7 +386,7 @@ async function loadAdvisor() {
     box.appendChild(el);
   });
 
-  const rows = d.members.filter(m => currentAction === "ALL" || m.action === currentAction);
+  const rows = d.members.filter(m => currentAction === "ALL" || m.program === currentAction);
   const tbody = $("advisor-rows");
   tbody.innerHTML = "";
   rows.forEach((m, idx) => {
@@ -503,9 +503,9 @@ function renderSingle(d) {
   
   renderDriversList($("s-drivers"), d.drivers);
   
-  const [cls, icon] = ACTION_META[d.action] || ["ac-care", ""];
+  const [cls, icon] = ACTION_META[d.program] || ["ac-care", ""];
   const badge = $("s-action");
-  badge.innerHTML = `${icon} ${d.action || "No action"}`;
+  badge.innerHTML = `${icon} ${d.program || "No action"}`;
   badge.className = `action-badge ${cls}`;
   badge.style.background = ""; // remove inline style
   $("s-detail").textContent = d.detail || "";

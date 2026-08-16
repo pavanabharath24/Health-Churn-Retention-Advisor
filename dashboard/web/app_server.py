@@ -289,6 +289,7 @@ def member(member_id):
         "prob": round(float(row["Churn_Probability"]) * 100, 1),
         "risk": row["Risk"],
         "drivers": drivers,
+        "program": drivers[0]["program"] if drivers else "",
         "action": drivers[0]["action"] if drivers else "",
         "detail": drivers[0]["detail"] if drivers else "",
     })
@@ -385,7 +386,7 @@ def predict_upload():
         drivers_map[str(ids[pos])] = drv
         action_counts[drv[0]["program"]] = action_counts.get(drv[0]["program"], 0) + 1
         driver_col[pos] = drv[0]["feature"]
-        action_col[pos] = drv[0]["action"]
+        action_col[pos] = drv[0]["program"]
     fallback_program, fallback_action, fallback_detail = map_action(global_top)
     for pos in np.setdiff1d(np.arange(n), sample_idx):       # fallback: global top driver
         drivers_map[str(ids[pos])] = [{"feature": global_top, "score": 0.0,
@@ -393,7 +394,7 @@ def predict_upload():
                                        "detail": fallback_detail}]
         action_counts[fallback_program] = action_counts.get(fallback_program, 0) + 1
         driver_col[pos] = global_top
-        action_col[pos] = fallback_action
+        action_col[pos] = fallback_program
 
     risks = np.where(proba >= 0.7, "HIGH", np.where(proba >= 0.4, "MEDIUM", "LOW"))
 
@@ -473,7 +474,7 @@ def predict_single():
         for i in top3:
             program, action, detail = map_action(fnames[i])
             drivers.append({"feature": clean_name(fnames[i]), "score": round(float(sv[i]), 3),
-                            "action": action, "detail": detail})
+                            "program": program, "action": action, "detail": detail})
         contributions = [{"feature": clean_name(fnames[i]), "score": round(float(sv[i]), 4)}
                          for i in order[:10]]
     except Exception:
@@ -484,8 +485,9 @@ def predict_single():
         "prob": round(p * 100, 1),
         "risk": risk,
         "drivers": drivers,
-        "action": drivers[0]["action"] if drivers else "Care Outreach",
-        "detail": drivers[0]["detail"] if drivers else "Standard retention touchpoint",
+        "program": drivers[0]["program"] if drivers else "Care Outreach",
+        "action": drivers[0]["action"] if drivers else "Standard retention touchpoint",
+        "detail": drivers[0]["detail"] if drivers else "Care-coordinator follow-up",
         "contributions": contributions,
         "member_value": MEMBER_VALUE_YEAR,
     })
