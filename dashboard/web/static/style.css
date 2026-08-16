@@ -21,7 +21,7 @@
 
 body {
   font-family: 'Inter', sans-serif;
-  background: linear-gradient(135deg, #f5f7fb 0%, #eef2f6 100%);
+  background: linear-gradient(135deg, #eff6ff 0%, #e0e7ff 50%, #f3e8ff 100%);
   color: var(--ink);
   min-height: 100vh;
 }
@@ -30,7 +30,7 @@ body {
 
 .sidebar {
   width: 260px;
-  background: linear-gradient(180deg, var(--navy) 0%, var(--navy2) 100%);
+  background: linear-gradient(180deg, #0f172a 0%, #1e1b4b 50%, #2e1065 100%);
   color: #e8e8f0;
   padding: 1.6rem 1.1rem;
   display: flex;
@@ -66,8 +66,8 @@ body {
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   font-family: inherit;
 }
-.nav-item:hover { background: rgba(255,255,255,0.07); color: #fff; transform: translateX(3px); }
-.nav-item.active { background: rgba(99,102,241,0.25); color: #c4b5fd; box-shadow: inset 2px 0 0 var(--brand2); }
+.nav-item:hover { background: linear-gradient(90deg, rgba(255,255,255,0.1) 0%, transparent 100%); color: #fff; transform: translateX(3px); }
+.nav-item.active { background: linear-gradient(90deg, rgba(99,102,241,0.3) 0%, rgba(168,85,247,0.1) 100%); color: #e0e7ff; box-shadow: inset 3px 0 0 #a855f7; }
 .nav-icon { display: flex; align-items: center; opacity: 0.85; }
 .nav-item:hover .nav-icon, .nav-item.active .nav-icon { opacity: 1; }
 
@@ -87,7 +87,7 @@ body {
 .main { flex: 1; padding: 1.6rem 2.5rem 2.4rem; max-width: 1320px; overflow-y: auto; }
 
 .app-header {
-  background: linear-gradient(135deg, var(--navy) 0%, #1a1f3a 50%, #1e2342 100%);
+  background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4c1d95 100%);
   padding: 2rem 2.5rem;
   border-radius: var(--radius);
   margin-bottom: 2rem;
@@ -105,12 +105,12 @@ body {
   right: -10%;
   width: 50%;
   height: 200%;
-  background: radial-gradient(circle, rgba(99,102,241,0.2) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(168,85,247,0.3) 0%, rgba(99,102,241,0.1) 40%, transparent 70%);
   pointer-events: none;
 }
 .app-title {
   font-size: 1.9rem; font-weight: 700;
-  background: linear-gradient(135deg, #ffffff 0%, #c4b5fd 100%);
+  background: linear-gradient(135deg, #ffffff 0%, #e0e7ff 30%, #fbcfe8 100%);
   -webkit-background-clip: text; background-clip: text; color: transparent;
   letter-spacing: -0.02em; position: relative;
 }
@@ -165,7 +165,7 @@ body {
 
 .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.2rem; margin-bottom: 1.5rem; }
 .metric-card {
-  background: var(--card);
+  background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.75) 100%);
   border-radius: 1rem;
   padding: 1.2rem 1.4rem;
   box-shadow: var(--shadow);
@@ -238,7 +238,7 @@ body {
   cursor: pointer; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); font-family: inherit;
   display: flex; align-items: center; gap: 0.4rem;
 }
-.chip:hover { border-color: var(--brand); color: var(--brand); transform: translateY(-1px); box-shadow: 0 4px 8px rgba(79,70,229,0.1); }
+.chip:hover { border-color: transparent; background: linear-gradient(135deg, #e0e7ff, #ede9fe); color: var(--brand2); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(99,102,241,0.15); }
 .chip.active { background: linear-gradient(135deg, var(--brand), var(--brand2)); border-color: transparent; color: #fff; box-shadow: 0 4px 12px rgba(79,70,229,0.25); }
 .chip-r.active { background: linear-gradient(135deg, #dc2626, var(--red)); border-color: transparent; box-shadow: 0 4px 12px rgba(220,38,38,0.25);}
 .chip-a.active { background: linear-gradient(135deg, #ea580c, var(--amber)); border-color: transparent; box-shadow: 0 4px 12px rgba(234,88,12,0.25);}
@@ -302,9 +302,9 @@ body {
 
 .action-badge {
   display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.7rem 1.2rem; border-radius: 0.75rem;
-  background: linear-gradient(135deg, var(--brand), var(--brand2));
+  background: linear-gradient(135deg, #4f46e5 0%, #7e22ce 100%);
   color: #fff; font-weight: 700; font-size: 1rem; margin-bottom: 0.8rem;
-  box-shadow: 0 4px 12px rgba(79,70,229,0.25);
+  box-shadow: 0 6px 16px rgba(126, 34, 206, 0.3);
 }
 #d-detail, #s-detail { color: var(--muted); font-size: 0.95rem; line-height: 1.6; }
 
