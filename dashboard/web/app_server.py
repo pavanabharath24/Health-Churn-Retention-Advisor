@@ -34,8 +34,7 @@ CAT_COLS = model_artifacts['CAT_COLS']
 ALL_COLS = NUM_COLS + CAT_COLS
 best_thr = model_artifacts.get('best_thr', 0.37)
 
-# Load ensemble weights
-weights = joblib.load("models/final_weights.pkl")
+# Using single XGBoost model
 
 preds = pd.read_csv("data/all_predictions.csv")
 MEMBER_VALUE_YEAR = 1800.0
@@ -349,10 +348,7 @@ def predict_upload():
     for c in CAT_COLS:
         X_u[c] = (user[c].fillna(CAT_MODES[c]).astype(str) if c in user.columns else CAT_MODES[c])
 
-    proba = np.zeros(len(user))
-    for name, model in pipelines.items():
-        proba += weights[name] * model.predict_proba(X_u[input_cols])[:, 1]
-    proba /= sum(weights.values())
+    proba = pipelines["XGBoost"].predict_proba(X_u[input_cols])[:, 1]
 
     drivers_map = {}
     action_counts = {}
@@ -456,10 +452,7 @@ def predict_single():
         else:
             X_u[c] = str(v)
 
-    proba = np.zeros(1)
-    for name, model in pipelines.items():
-        proba += weights[name] * model.predict_proba(X_u[input_cols])[:, 1]
-    proba /= sum(weights.values())
+    proba = pipelines["XGBoost"].predict_proba(X_u[input_cols])[:, 1]
     p = float(proba[0])
     risk = risk_label(p)
 
